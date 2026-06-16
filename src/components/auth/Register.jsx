@@ -166,7 +166,7 @@ const Register = () => {
           <div className={styles['mark']}>$$</div>
           Stock<span>Sense</span>
         </Link>
-        <div className={styles['auth-sub']}>AI Investment Advisor · Final Year Project</div>
+        <div className={styles['auth-sub']}>AI Investment Advisor</div>
 
         <h1 className={styles['auth-heading']}>
           Create <em>Account</em>
