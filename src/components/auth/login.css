@@ -1,10 +1,42 @@
 /* src/components/auth/Login.css */
 
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background: radial-gradient(circle at 20% 20%, rgba(55,214,189,0.08), #0a0e14 70%);
+}
+
+body {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+  background: radial-gradient(circle at 20% 20%, rgba(55,214,189,0.08), #0a0e14 70%);
+}
+
+#root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
 .auth-container {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   background: radial-gradient(circle at 20% 20%, rgba(55,214,189,0.08), #0a0e14 70%);
   padding: 1.5rem;
 }
@@ -48,6 +80,7 @@
   text-transform: uppercase;
   color: #8595a9;
   margin-bottom: 0.4rem;
+  text-align: left;
 }
 .auth-field input {
   width: 100%;
