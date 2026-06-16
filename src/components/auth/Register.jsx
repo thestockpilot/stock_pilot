@@ -1,8 +1,7 @@
 // frontend/src/components/auth/Register.jsx
 import React, { useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import styles from './Register.module.css'; 
-
+import styles from './Register.module.css';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -166,7 +165,7 @@ const Register = () => {
           <div className={styles['mark']}>$$</div>
           Stock<span>Sense</span>
         </Link>
-        <div className={styles['auth-sub']}>AI Investment Advisor · Final Year Project</div>
+        <div className={styles['auth-sub']}>AI Investment Advisor</div>
 
         <h1 className={styles['auth-heading']}>
           Create <em>Account</em>
