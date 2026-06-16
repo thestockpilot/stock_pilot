@@ -1,0 +1,114 @@
+/* src/components/auth/Login.css */
+
+.auth-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: radial-gradient(circle at 20% 20%, rgba(55,214,189,0.08), #0a0e14 70%);
+  padding: 1.5rem;
+}
+
+.auth-card {
+  background: #121925;
+  border: 1px solid #222e40;
+  border-radius: 24px;
+  padding: 2.5rem 2.8rem;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 20px 50px -12px rgba(0,0,0,0.8);
+}
+
+.auth-title {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-weight: 700;
+  font-size: 2rem;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.25rem;
+  color: #e7eef6;
+}
+.auth-title span {
+  color: #37d6bd;
+}
+
+.auth-sub {
+  color: #8595a9;
+  font-size: 0.9rem;
+  margin-bottom: 1.8rem;
+}
+
+.auth-field {
+  margin-bottom: 1.25rem;
+}
+.auth-field label {
+  display: block;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8595a9;
+  margin-bottom: 0.4rem;
+}
+.auth-field input {
+  width: 100%;
+  background: #0e131c;
+  border: 1px solid #222e40;
+  border-radius: 12px;
+  padding: 0.8rem 1rem;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 1rem;
+  color: #e7eef6;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.auth-field input:focus {
+  border-color: #37d6bd;
+  box-shadow: 0 0 0 3px rgba(55,214,189,0.15);
+}
+
+.auth-btn {
+  width: 100%;
+  background: linear-gradient(145deg, #37d6bd, #1c9d8b);
+  border: none;
+  border-radius: 12px;
+  padding: 0.85rem;
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  font-size: 1rem;
+  color: #04221d;
+  cursor: pointer;
+  transition: filter 0.2s;
+  margin-top: 0.5rem;
+}
+.auth-btn:hover {
+  filter: brightness(1.05);
+}
+.auth-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.auth-footer {
+  text-align: center;
+  margin-top: 1.5rem;
+  color: #8595a9;
+  font-size: 0.9rem;
+}
+.auth-footer a {
+  color: #37d6bd;
+  text-decoration: none;
+  font-weight: 600;
+}
+.auth-footer a:hover {
+  text-decoration: underline;
+}
+
+.auth-error {
+  background: rgba(242,97,109,0.12);
+  border: 1px solid rgba(242,97,109,0.3);
+  color: #f2616d;
+  padding: 0.6rem 1rem;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
