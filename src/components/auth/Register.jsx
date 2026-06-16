@@ -163,7 +163,7 @@ const Register = () => {
         {/* Logo */}
         <Link to="/" className={styles['auth-logo']}>
           <div className={styles['mark']}>$$</div>
-          Stock<span>Sense</span>
+          Stock<span>Pilot</span>
         </Link>
         <div className={styles['auth-sub']}>AI Investment Advisor</div>
 

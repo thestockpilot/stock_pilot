@@ -4,7 +4,7 @@ import api from '../api/client';
 
 // In-memory store for mock mode
 let mockUsers = [
-  { id: 1, email: 'demo@stocksense.com', full_name: 'Demo User', risk_profile: 'Moderate', time_horizon: 'Medium' }
+  { id: 1, email: 'demo@stockpilot.com', full_name: 'Demo User', risk_profile: 'Moderate', time_horizon: 'Medium' }
 ];
 const mockToken = 'mock-jwt-token';
 
@@ -47,7 +47,7 @@ export const AuthProvider = ({ children }) => {
     // For demo, accept any password for the demo user, else require 'password123'
     const found = mockUsers.find(u => u.email === email);
     if (!found) throw new Error('User not found');
-    if (password !== 'password123' && email !== 'demo@stocksense.com') {
+    if (password !== 'password123' && email !== 'demo@stockpilot.com') {
       throw new Error('Invalid password');
     }
     localStorage.setItem('access_token', mockToken);
