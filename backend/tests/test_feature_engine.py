@@ -22,8 +22,8 @@ import numpy as np
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from src.data.fetcher import DataFetcher
-from src.features.engine import FeatureEngine
+from app.services.market_data.fetcher import DataFetcher
+from app.services.indicators.engine import FeatureEngine
 
 
 # ============================================================
