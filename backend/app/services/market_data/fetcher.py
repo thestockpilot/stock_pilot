@@ -1,322 +1,296 @@
 """
-Data Fetcher Module
+Data Fetcher Module.
 
-Handles downloading and saving historical stock data from Yahoo Finance.
+Downloads historical stock data from Yahoo Finance with retry logic and
+optional local caching. Never configures logging at import time.
 """
 
-import os
+from __future__ import annotations
+
 import logging
+import time
+from pathlib import Path
+from typing import Optional
+
 import pandas as pd
 import yfinance as yf
-from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Optional, Union
 
-# Setup logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+
+# ------------------------------------------------------------------
+# helpers
+# ------------------------------------------------------------------
+
+def _flatten_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Flatten MultiIndex column names that yfinance returns when downloading a single ticker."""
+    if isinstance(df.columns, pd.MultiIndex):
+        df = df.copy()
+        df.columns = [
+            "_".join(str(part) for part in col if part).strip() for col in df.columns.values
+        ]
+    return df
+
+
+def _standardize_ohlcv(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Ensure the DataFrame has canonical OHLCV column names.
+
+    yfinance sometimes returns columns like ``Close_AAPL`` or ``AAPL_Close``
+    when the multi-ticker interface is triggered. This normalises them.
+    """
+    df = df.copy()
+    required = ["Open", "High", "Low", "Close", "Volume"]
+
+    rename_map: dict[str, str] = {}
+    for target in required:
+        if target in df.columns:
+            continue
+        # Look for a suffix or prefix match (case-insensitive)
+        for col in df.columns:
+            if col.lower() == target.lower():
+                rename_map[col] = target
+                break
+            if col.endswith(f"_{target}") or col.startswith(f"{target}_"):
+                rename_map[col] = target
+                break
+
+    if rename_map:
+        df = df.rename(columns=rename_map)
+
+    missing = [c for c in required if c not in df.columns]
+    if missing:
+        raise ValueError(f"downloaded data missing required columns {missing}; got {list(df.columns)}")
+
+    return df
+
+
+# ------------------------------------------------------------------
+# main class
+# ------------------------------------------------------------------
 
 
 class DataFetcher:
     """
-    A class for fetching and managing historical stock data from Yahoo Finance.
-    
-    Attributes:
-        data_path (str): Path to the data storage directory.
-        default_period (str): Default period for historical data (e.g., '6mo', '1y').
-        default_interval (str): Default interval for data points (e.g., '1d', '1h').
+    Fetch and locally persist Yahoo Finance historical data.
+
+    Parameters
+    ----------
+    data_path
+        Directory in which CSV files are stored.
+    default_period, default_interval
+        yfinance ``period`` and ``interval`` values used when the caller
+        does not specify them.
+    max_retries
+        Number of times to retry a failing download before giving up.
+    retry_backoff
+        Seconds slept between retries; doubles on every failure.
     """
-    
+
     def __init__(
         self,
-        data_path: str = "data_storage/historical/",
+        data_path: str | Path = "data_storage/historical/",
         default_period: str = "6mo",
-        default_interval: str = "1d"
-    ):
-        """
-        Initialize the DataFetcher with storage settings.
-        
-        Args:
-            data_path: Directory to store CSV files.
-            default_period: Default period for data downloads.
-            default_interval: Default interval between data points.
-        """
+        default_interval: str = "1d",
+        max_retries: int = 3,
+        retry_backoff: float = 1.0,
+    ) -> None:
         self.data_path = Path(data_path)
         self.default_period = default_period
         self.default_interval = default_interval
-        
-        # Create the data directory if it doesn't exist
+        self.max_retries = max_retries
+        self.retry_backoff = retry_backoff
+
         self.data_path.mkdir(parents=True, exist_ok=True)
-        logger.info(f"DataFetcher initialized. Storage path: {self.data_path}")
-    
+        logger.debug("DataFetcher initialised at %s", self.data_path)
+
+    # ------------------------------------------------------------------
+    # download
+    # ------------------------------------------------------------------
+
     def fetch_historical(
         self,
         ticker: str,
         period: Optional[str] = None,
         interval: Optional[str] = None,
         start: Optional[str] = None,
-        end: Optional[str] = None
+        end: Optional[str] = None,
     ) -> pd.DataFrame:
         """
-        Fetch historical stock data from Yahoo Finance.
-        
-        Args:
-            ticker: Stock ticker symbol (e.g., 'AAPL', 'MSFT').
-            period: Period to fetch ('1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'max').
-            interval: Data interval ('1m', '5m', '15m', '30m', '1h', '1d', '5d', '1wk', '1mo').
-            start: Start date in 'YYYY-MM-DD' format.
-            end: End date in 'YYYY-MM-DD' format.
-        
-        Returns:
-            pd.DataFrame: Historical OHLCV data for the ticker.
-            
-        Raises:
-            ValueError: If no data is found or parameters are invalid.
-            Exception: For download failures.
+        Download OHLCV data for ``ticker`` from Yahoo Finance.
+
+        Uses ``start``/``end`` if both are given, otherwise falls back to
+        ``period``. Raises ``ValueError`` if the ticker is unknown or the
+        response is empty.
         """
-        # Use defaults if not provided
+        if not ticker or not isinstance(ticker, str):
+            raise ValueError(f"invalid ticker: {ticker!r}")
+
         period = period or self.default_period
         interval = interval or self.default_interval
-        
-        logger.info(f"Fetching data for {ticker} | Period: {period} | Interval: {interval}")
-        
-        try:
-            # Validate ticker
-            if not ticker or not isinstance(ticker, str):
-                raise ValueError(f"Invalid ticker: {ticker}")
-            
-            # Download data
-            if start and end:
-                data = yf.download(
-                    ticker,
-                    start=start,
-                    end=end,
-                    interval=interval,
-                    progress=False,
-                    auto_adjust=True
+        ticker = ticker.strip().upper()
+
+        logger.info("fetching %s period=%s interval=%s", ticker, period, interval)
+
+        # Download with retries
+        last_exc: Optional[Exception] = None
+        backoff = self.retry_backoff
+        for attempt in range(1, self.max_retries + 1):
+            try:
+                if start and end:
+                    data = yf.download(
+                        ticker,
+                        start=start,
+                        end=end,
+                        interval=interval,
+                        progress=False,
+                        auto_adjust=True,
+                        threads=False,
+                    )
+                else:
+                    data = yf.download(
+                        ticker,
+                        period=period,
+                        interval=interval,
+                        progress=False,
+                        auto_adjust=True,
+                        threads=False,
+                    )
+                break
+            except Exception as exc:  # noqa: BLE001 — yfinance raises many types
+                last_exc = exc
+                logger.warning(
+                    "yfinance attempt %d/%d failed for %s: %s",
+                    attempt, self.max_retries, ticker, exc,
                 )
-            else:
-                data = yf.download(
-                    ticker,
-                    period=period,
-                    interval=interval,
-                    progress=False,
-                    auto_adjust=True
-                )
-            
-            # Check if data is empty
-            if data.empty:
-                raise ValueError(f"No data found for ticker: {ticker}")
-            
-            # Flatten MultiIndex columns if they exist
-            if isinstance(data.columns, pd.MultiIndex):
-                data.columns = ['_'.join(col).strip() for col in data.columns.values]
-            
-            # Ensure we have at least 2 rows
-            if len(data) < 2:
-                logger.warning(f"Only {len(data)} rows downloaded for {ticker}. Data may be insufficient.")
-            
-            logger.info(f"✅ Successfully fetched {len(data)} rows for {ticker}")
-            
-            # Add ticker column for reference
-            data['Ticker'] = ticker
-            
-            return data
-            
-        except Exception as e:
-            logger.error(f"❌ Failed to fetch data for {ticker}: {str(e)}")
-            raise
-    
+                if attempt < self.max_retries:
+                    time.sleep(backoff)
+                    backoff *= 2
+        else:
+            raise RuntimeError(f"failed to fetch {ticker} after {self.max_retries} attempts") from last_exc
+
+        if data is None or data.empty:
+            raise ValueError(f"no data returned for ticker {ticker!r}")
+
+        data = _flatten_columns(data)
+        data = _standardize_ohlcv(data)
+
+        # Attach ticker but keep it out of the numeric feature space by using a category
+        data["Ticker"] = pd.Categorical([ticker] * len(data))
+
+        if len(data) < 2:
+            logger.warning("only %d rows returned for %s — data may be insufficient", len(data), ticker)
+
+        logger.info("fetched %d rows for %s (%s → %s)",
+                    len(data), ticker, data.index.min().date(), data.index.max().date())
+        return data
+
+    # ------------------------------------------------------------------
+    # persistence
+    # ------------------------------------------------------------------
+
+    def _default_filename(self, ticker: str, period: str, interval: str) -> str:
+        return f"{ticker.upper()}_{period}_{interval}.csv"
+
     def save_to_csv(
         self,
         data: pd.DataFrame,
         ticker: str,
         period: Optional[str] = None,
-        interval: Optional[str] = None
-    ) -> str:
-        """
-        Save DataFrame to CSV file with standardized naming.
-        
-        Args:
-            data: DataFrame containing stock data.
-            ticker: Stock ticker symbol.
-            period: Period used for download (for filename).
-            interval: Interval used for download (for filename).
-            
-        Returns:
-            str: Path to the saved file.
-        """
+        interval: Optional[str] = None,
+    ) -> Path:
+        """Persist ``data`` to CSV in ``self.data_path`` and return the file path."""
         period = period or self.default_period
         interval = interval or self.default_interval
-        
-        # Generate filename: TICKER_PERIOD_INTERVAL.csv
-        filename = f"{ticker.upper()}_{period}_{interval}.csv"
-        filepath = self.data_path / filename
-        
-        try:
-            # Ensure directory exists
-            filepath.parent.mkdir(parents=True, exist_ok=True)
-            
-            # Save to CSV
-            data.to_csv(filepath, index=True)
-            logger.info(f"✅ Data saved to: {filepath}")
-            
-            return str(filepath)
-            
-        except Exception as e:
-            logger.error(f"❌ Failed to save data to {filepath}: {str(e)}")
-            raise
-    
+        path = self.data_path / self._default_filename(ticker, period, interval)
+
+        path.parent.mkdir(parents=True, exist_ok=True)
+        data.to_csv(path, index=True)
+        logger.info("saved %d rows to %s", len(data), path)
+        return path
+
     def load_from_csv(
         self,
         ticker: str,
         period: Optional[str] = None,
         interval: Optional[str] = None,
-        filepath: Optional[str] = None
+        filepath: Optional[str | Path] = None,
     ) -> pd.DataFrame:
-        """
-        Load data from a CSV file.
-        
-        Args:
-            ticker: Stock ticker symbol.
-            period: Period used for download.
-            interval: Interval used for download.
-            filepath: Direct path to CSV file (overrides constructed path).
-            
-        Returns:
-            pd.DataFrame: Data loaded from CSV.
-            
-        Raises:
-            FileNotFoundError: If the file doesn't exist.
-        """
-        if filepath:
+        """Load previously saved CSV data. Raises ``FileNotFoundError`` if the file is missing."""
+        if filepath is not None:
             path = Path(filepath)
         else:
             period = period or self.default_period
             interval = interval or self.default_interval
-            filename = f"{ticker.upper()}_{period}_{interval}.csv"
-            path = self.data_path / filename
-        
+            path = self.data_path / self._default_filename(ticker, period, interval)
+
         if not path.exists():
-            raise FileNotFoundError(f"File not found: {path}")
-        
-        try:
-            data = pd.read_csv(path, index_col=0, parse_dates=True)
-            logger.info(f"✅ Loaded {len(data)} rows from: {path}")
-            return data
-        except Exception as e:
-            logger.error(f"❌ Failed to load data from {path}: {str(e)}")
-            raise
-    
+            raise FileNotFoundError(f"CSV not found: {path}")
+
+        data = pd.read_csv(path, index_col=0, parse_dates=True)
+        logger.info("loaded %d rows from %s", len(data), path)
+        return data
+
     def fetch_and_save(
         self,
         ticker: str,
         period: Optional[str] = None,
         interval: Optional[str] = None,
         start: Optional[str] = None,
-        end: Optional[str] = None
-    ) -> str:
-        """
-        Combined method to fetch and save data in one call.
-        
-        Args:
-            ticker: Stock ticker symbol.
-            period: Period to fetch.
-            interval: Data interval.
-            start: Start date (overrides period).
-            end: End date.
-            
-        Returns:
-            str: Path to the saved file.
-        """
-        period = period or self.default_period
-        interval = interval or self.default_interval
-        
+        end: Optional[str] = None,
+    ) -> Path:
+        """Convenience wrapper: fetch, save, return the file path."""
         data = self.fetch_historical(ticker, period, interval, start, end)
-        
-        if not data.empty:
-            # Add Ticker column if it doesn't have one
-            if 'Ticker' not in data.columns:
-                data['Ticker'] = ticker
-            
-            return self.save_to_csv(data, ticker, period, interval)
-        else:
-            raise ValueError(f"No data to save for ticker: {ticker}")
-    
-    def get_available_tickers(self) -> list:
-        """
-        List all available tickers in the data storage.
-        
-        Returns:
-            list: List of ticker symbols that have saved data.
-        """
-        tickers = []
-        for file in self.data_path.glob("*.csv"):
-            # Extract ticker from filename (TICKER_PERIOD_INTERVAL.csv)
-            parts = file.stem.split('_')
-            if parts:
-                tickers.append(parts[0])
-        return sorted(set(tickers))
-    
+        return self.save_to_csv(data, ticker, period, interval)
+
+    # ------------------------------------------------------------------
+    # introspection
+    # ------------------------------------------------------------------
+
+    def get_available_tickers(self) -> list[str]:
+        """Return the sorted, unique list of tickers for which CSV data exists."""
+        tickers = {file.stem.split("_", maxsplit=1)[0] for file in self.data_path.glob("*.csv")}
+        return sorted(tickers)
+
     def get_data_summary(self, ticker: str) -> dict:
-        """
-        Get summary information for a ticker's data.
-        
-        Args:
-            ticker: Stock ticker symbol.
-            
-        Returns:
-            dict: Summary information including date range, rows, columns.
-        """
+        """Return a small dictionary describing the stored data for ``ticker``."""
         try:
             data = self.load_from_csv(ticker)
-            return {
-                'ticker': ticker,
-                'rows': len(data),
-                'columns': list(data.columns),
-                'date_range': (data.index.min(), data.index.max()),
-                'start_date': data.index.min().strftime('%Y-%m-%d'),
-                'end_date': data.index.max().strftime('%Y-%m-%d'),
-                'has_volume': 'Volume' in data.columns,
-                'has_close': 'Close' in data.columns
-            }
         except FileNotFoundError:
-            return {'ticker': ticker, 'error': 'No data found'}
-        except Exception as e:
-            return {'ticker': ticker, 'error': str(e)}
+            return {"ticker": ticker, "error": "no data found"}
 
-# ====== Quick test function ======
-def main():
-    """Test the DataFetcher class."""
-    print("🧪 Testing DataFetcher...\n")
-    
-    # Initialize fetcher
+        return {
+            "ticker": ticker,
+            "rows": len(data),
+            "columns": list(data.columns),
+            "start_date": data.index.min().strftime("%Y-%m-%d"),
+            "end_date": data.index.max().strftime("%Y-%m-%d"),
+        }
+
+
+# ------------------------------------------------------------------
+# CLI test
+# ------------------------------------------------------------------
+
+def _demo() -> None:
+    """Small self-check runnable with ``python -m src.data.fetcher``."""
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(levelname)-7s  %(message)s")
+
     fetcher = DataFetcher()
-    
-    # Test fetch
-    print("📊 Downloading AAPL data...")
+    print("fetching AAPL / 1mo …")
     df = fetcher.fetch_historical("AAPL", period="1mo")
-    print(f"✅ Downloaded {len(df)} rows")
-    print(f"Columns: {list(df.columns)}\n")
-    
-    # Test save
-    print("💾 Saving data...")
-    filepath = fetcher.save_to_csv(df, "AAPL", period="1mo")
-    print(f"✅ Saved to: {filepath}\n")
-    
-    # Test load
-    print("📖 Loading data...")
-    df_loaded = fetcher.load_from_csv("AAPL", period="1mo")
-    print(f"✅ Loaded {len(df_loaded)} rows\n")
-    
-    # Test summary
-    print("📊 Data summary:")
-    summary = fetcher.get_data_summary("AAPL")
-    for key, value in summary.items():
-        print(f"  {key}: {value}")
-    
-    print("\n✅ All tests passed! DataFetcher is ready.")
+    print(f"  → {len(df)} rows, columns: {list(df.columns)}")
+
+    print("saving …")
+    path = fetcher.save_to_csv(df, "AAPL", period="1mo")
+    print(f"  → {path}")
+
+    print("loading back …")
+    df2 = fetcher.load_from_csv("AAPL", period="1mo")
+    print(f"  → {len(df2)} rows")
+
+    print("summary:", fetcher.get_data_summary("AAPL"))
 
 
 if __name__ == "__main__":
-    main()
+    _demo()
