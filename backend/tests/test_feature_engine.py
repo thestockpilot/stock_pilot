@@ -23,7 +23,7 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from app.services.market_data.fetcher import DataFetcher
-from app.services.indicators.engine import FeatureEngine
+from backend.app.services.indicators.featureEngine import FeatureEngine
 
 
 # ============================================================
