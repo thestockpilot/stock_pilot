@@ -1,24 +1,16 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import String, Numeric, DateTime, Integer, func, ForeignKey, Enum as SAEnum
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
-from app.db.base import Base
-import enum
+from pydantic import BaseModel
 
-class SignalType(str, enum.Enum):
-    BUY  = "BUY"
-    HOLD = "HOLD"
-    SELL = "SELL"
 
-class Prediction(Base):
-    __tablename__ = "predictions"
+class PredictionOut(BaseModel):
+    id: uuid.UUID
+    ticker: str
+    signal: str
+    confidence: float
+    probability_up: float
+    probability_down: float
+    model_version: str
+    created_at: datetime
 
-    id               : Mapped[uuid.UUID]  = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    ticker           : Mapped[str]        = mapped_column(String(10), index=True, nullable=False)
-    signal           : Mapped[SignalType] = mapped_column(SAEnum(SignalType), nullable=False)
-    confidence       : Mapped[float]      = mapped_column(Numeric(5, 2), nullable=False)
-    probability_up   : Mapped[float]      = mapped_column(Numeric(5, 2), nullable=False)
-    probability_down : Mapped[float]      = mapped_column(Numeric(5, 2), nullable=False)
-    model_version    : Mapped[str]        = mapped_column(String(50), nullable=False, default="xgboost_v1")
-    created_at       : Mapped[datetime]   = mapped_column(DateTime(timezone=True), server_default=func.now())
+    model_config = {"from_attributes": True}
