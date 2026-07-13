@@ -1,22 +1,28 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import String, Boolean, DateTime, func, ForeignKey, Text
-from sqlalchemy.dialects.postgresql import UUID, JSONB
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from app.db.base import Base
+from pydantic import BaseModel
 
-class Strategy(Base):
-    __tablename__ = "strategies"
 
-    id           : Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    owner_id     : Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
-    name         : Mapped[str]       = mapped_column(String(80), nullable=False)
-    description  : Mapped[str]       = mapped_column(Text, nullable=True)
-    weights      : Mapped[dict]      = mapped_column(JSONB, nullable=False)
-    is_preset    : Mapped[bool]      = mapped_column(Boolean, default=False, nullable=False)
-    is_published : Mapped[bool]      = mapped_column(Boolean, default=False, nullable=False)
-    created_at   : Mapped[datetime]  = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at   : Mapped[datetime]  = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+class StrategyCreate(BaseModel):
+    name: str
+    description: str | None = None
+    weights: dict
 
-    owner   = relationship("User", back_populates="strategies")
-    listing = relationship("MarketplaceListing", back_populates="strategy", uselist=False)
+
+class StrategyUpdate(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    weights: dict | None = None
+
+
+class StrategyOut(BaseModel):
+    id: uuid.UUID
+    owner_id: uuid.UUID | None = None
+    name: str
+    description: str | None = None
+    weights: dict
+    is_preset: bool
+    is_published: bool
+    created_at: datetime
+
+    model_config = {"from_attributes": True}

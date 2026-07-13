@@ -1,19 +1,26 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import String, Numeric, DateTime, func, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from app.db.base import Base
+from pydantic import BaseModel
 
-class Holding(Base):
-    __tablename__ = "holdings"
 
-    id         : Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id    : Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    ticker     : Mapped[str]       = mapped_column(String(10), nullable=False)
-    quantity   : Mapped[float]     = mapped_column(Numeric(18, 4), nullable=False)
-    avg_cost   : Mapped[float]     = mapped_column(Numeric(18, 4), nullable=False)
-    opened_at  : Mapped[datetime]  = mapped_column(DateTime(timezone=True), server_default=func.now())
-    closed_at  : Mapped[datetime]  = mapped_column(DateTime(timezone=True), nullable=True)
+class HoldingCreate(BaseModel):
+    ticker: str
+    quantity: float
+    avg_cost: float
 
-    user = relationship("User", back_populates="holdings")
+
+class HoldingUpdate(BaseModel):
+    quantity: float | None = None
+    avg_cost: float | None = None
+
+
+class HoldingOut(BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    ticker: str
+    quantity: float
+    avg_cost: float
+    opened_at: datetime
+    closed_at: datetime | None = None
+
+    model_config = {"from_attributes": True}
