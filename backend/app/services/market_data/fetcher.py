@@ -5,7 +5,7 @@ Downloads historical stock data from Yahoo Finance with retry logic and
 optional local caching. Never configures logging at import time.
 """
 
-from __future__ import annotations
+# from __future__ import annotations
 
 import logging
 import time
@@ -272,25 +272,25 @@ class DataFetcher:
 # CLI test
 # ------------------------------------------------------------------
 
-def _demo() -> None:
-    """Small self-check runnable with ``python -m src.data.fetcher``."""
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(levelname)-7s  %(message)s")
+# def _demo() -> None:
+#     """Small self-check runnable with ``python -m src.data.fetcher``."""
+#     logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(levelname)-7s  %(message)s")
 
-    fetcher = DataFetcher()
-    print("fetching AAPL / 1mo …")
-    df = fetcher.fetch_historical("AAPL", period="1mo")
-    print(f"  → {len(df)} rows, columns: {list(df.columns)}")
+#     fetcher = DataFetcher()
+#     print("fetching AAPL / 1mo …")
+#     df = fetcher.fetch_historical("AAPL", period="1mo")
+#     print(f"  → {len(df)} rows, columns: {list(df.columns)}")
 
-    print("saving …")
-    path = fetcher.save_to_csv(df, "AAPL", period="1mo")
-    print(f"  → {path}")
+#     print("saving …")
+#     path = fetcher.save_to_csv(df, "AAPL", period="1mo")
+#     print(f"  → {path}")
 
-    print("loading back …")
-    df2 = fetcher.load_from_csv("AAPL", period="1mo")
-    print(f"  → {len(df2)} rows")
+#     print("loading back …")
+#     df2 = fetcher.load_from_csv("AAPL", period="1mo")
+#     print(f"  → {len(df2)} rows")
 
-    print("summary:", fetcher.get_data_summary("AAPL"))
+#     print("summary:", fetcher.get_data_summary("AAPL"))
 
 
-if __name__ == "__main__":
-    _demo()
+# if __name__ == "__main__":
+#     _demo()

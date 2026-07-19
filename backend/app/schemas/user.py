@@ -9,6 +9,9 @@ class UserOut(BaseModel):
     full_name: str
     role: str
     is_active: bool
+    phone: str | None = None
+    bio: str | None = None
+    avatar_url: str | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -17,3 +20,10 @@ class UserOut(BaseModel):
 class UserUpdate(BaseModel):
     full_name: str | None = None
     email: EmailStr | None = None
+    phone: str | None = None
+    bio: str | None = None
+
+
+class PasswordUpdate(BaseModel):
+    current_password: str
+    new_password: str

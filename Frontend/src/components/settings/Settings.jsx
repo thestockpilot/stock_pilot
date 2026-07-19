@@ -1,17 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/client';
 import Toggle from '../ui/Toggle';
-import { MOCK_BILLING_HISTORY } from '../../data/mock';
 
 const TABS = [
   { key: 'profile', label: 'Profile' },
   { key: 'security', label: 'Security' },
   { key: 'notifications', label: 'Notifications' },
-  { key: 'preferences', label: 'Preferences' },
-  { key: 'subscription', label: 'Subscription' },
-  { key: 'api', label: 'API access' },
 ];
 
 export default function Settings() {
@@ -32,10 +28,6 @@ export default function Settings() {
   const [notifPrefs, setNotifPrefs] = useState({
     verdict_changes: true, news_sentiment: true, price_alerts: true,
     marketplace_updates: false, weekly_report: true, product_news: false,
-  });
-
-  const [securityToggles, setSecurityToggles] = useState({
-    authenticator: false, sms_backup: false, sign_in_alerts: true,
   });
 
   useEffect(() => {
@@ -96,15 +88,52 @@ export default function Settings() {
     }
   };
 
+  const fileInputRef = useRef(null);
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    setSaving(true);
+    setMessage('');
+    try {
+      const { data } = await api.post('/api/v1/users/me/avatar', formData);
+      updateUser(data);
+      setMessage('Profile photo updated.');
+    } catch (err) {
+      setMessage(err.response?.data?.detail || 'Failed to upload photo.');
+    } finally {
+      setSaving(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleAvatarRemove = async () => {
+    setSaving(true);
+    setMessage('');
+    try {
+      const { data } = await api.delete('/api/v1/users/me/avatar');
+      updateUser(data);
+      setMessage('Profile photo removed.');
+    } catch (err) {
+      setMessage(err.response?.data?.detail || 'Failed to remove photo.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const initials = user?.full_name
     ? user.full_name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
     : 'SP';
+
+  const avatarUrl = user?.avatar_url || null;
 
   return (
     <div className="view-enter">
       <div className="eyebrow">Account</div>
       <h1 className="page">Settings</h1>
-      <p className="lede">Manage your profile, security, notifications and subscription.</p>
+      <p className="lede">Manage your profile, security, and notifications.</p>
 
       {message && (
         <div style={{ marginTop: 12, padding: '10px 14px', borderRadius: 8, background: 'rgba(212,168,83,.08)', border: '1px solid rgba(212,168,83,.25)', color: 'var(--accent)', fontSize: 13, fontFamily: 'var(--mono)' }}>
@@ -128,10 +157,15 @@ export default function Settings() {
               <h3>Profile</h3>
               <div className="s-sub">Your public information and account details.</div>
               <div className="avatar-row">
-                <div className="avatar-circle">{initials}</div>
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="Avatar" className="avatar-circle" style={{ objectFit: 'cover' }} />
+                ) : (
+                  <div className="avatar-circle">{initials}</div>
+                )}
                 <div>
-                  <button className="btn primary">Upload new photo</button>
-                  <button className="btn" style={{ marginLeft: 6 }}>Remove</button>
+                  <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} onChange={handleAvatarUpload} />
+                  <button className="btn primary" onClick={() => fileInputRef.current?.click()} disabled={saving}>Upload new photo</button>
+                  <button className="btn" style={{ marginLeft: 6 }} onClick={handleAvatarRemove} disabled={saving || !avatarUrl}>Remove</button>
                   <div className="mini-note">JPG or PNG, up to 2 MB.</div>
                 </div>
               </div>
@@ -162,22 +196,6 @@ export default function Settings() {
                 </div>
                 <div className="s-actions"><button className="btn primary" onClick={handleUpdatePassword} disabled={saving}>Update password</button></div>
               </div>
-              <div className="s-card">
-                <h3>Two-factor authentication</h3>
-                <div className="s-sub">Add an extra layer of security to your sign-in.</div>
-                <div className="s-toggle-row">
-                  <div><div className="s-t-title">Authenticator app</div><div className="s-t-desc">Use an app like Google Authenticator to generate one-time codes.</div></div>
-                  <Toggle on={securityToggles.authenticator} onToggle={(v) => setSecurityToggles({ ...securityToggles, authenticator: v })} />
-                </div>
-                <div className="s-toggle-row">
-                  <div><div className="s-t-title">SMS backup codes</div><div className="s-t-desc">Receive a verification code by text as a fallback method.</div></div>
-                  <Toggle on={securityToggles.sms_backup} onToggle={(v) => setSecurityToggles({ ...securityToggles, sms_backup: v })} />
-                </div>
-                <div className="s-toggle-row">
-                  <div><div className="s-t-title">Sign-in email alerts</div><div className="s-t-desc">Get notified whenever a new device signs in to your account.</div></div>
-                  <Toggle on={securityToggles.sign_in_alerts} onToggle={(v) => setSecurityToggles({ ...securityToggles, sign_in_alerts: v })} />
-                </div>
-              </div>
             </>
           )}
 
@@ -202,101 +220,7 @@ export default function Settings() {
             </div>
           )}
 
-          {/* Preferences */}
-          {activeTab === 'preferences' && (
-            <div className="s-card">
-              <h3>Display and locale</h3>
-              <div className="s-sub">Personalise how the interface looks and behaves.</div>
-              <div className="s-form">
-                <div><label>Theme</label><select defaultValue="dark"><option value="dark">Dark (default)</option><option value="light">Light</option><option value="system">System</option></select></div>
-                <div><label>Base currency</label><select defaultValue="USD"><option value="USD">USD ($)</option><option value="EUR">EUR (€)</option><option value="GBP">GBP (£)</option><option value="JPY">JPY (¥)</option></select></div>
-                <div><label>Timezone</label><select defaultValue="utc-8"><option value="utc-8">UTC−08:00 Pacific Time</option><option value="utc">UTC±00:00 UTC</option><option value="utc+1">UTC+01:00 Central Europe</option><option value="utc+5.5">UTC+05:30 India Standard</option></select></div>
-                <div><label>Number format</label><select defaultValue="us"><option value="us">1,234.56 (US)</option><option value="eu">1.234,56 (EU)</option><option value="fr">1 234,56 (FR)</option></select></div>
-                <div><label>Default landing tab</label><select defaultValue="dashboard"><option value="dashboard">Dashboard</option><option value="portfolio">Portfolio</option><option value="advisor">Advisor</option><option value="marketplace">Marketplace</option></select></div>
-                <div><label>Chart style</label><select defaultValue="line"><option value="line">Line</option><option value="candlestick">Candlestick</option><option value="area">Area</option></select></div>
-              </div>
-              <div className="s-actions"><button className="btn primary">Save preferences</button></div>
-            </div>
-          )}
 
-          {/* Subscription */}
-          {activeTab === 'subscription' && (
-            <>
-              <div className="s-card">
-                <h3>Current plan</h3>
-                <div className="s-sub">Manage your subscription and payment method.</div>
-                <div className="plan-card">
-                  <div className="plan-name">Pro plan</div>
-                  <div className="plan-price">$19<small>/ month</small></div>
-                  <ul>
-                    <li>Live AI verdicts on unlimited tickers</li>
-                    <li>Full marketplace strategy access</li>
-                    <li>Advanced backtesting and factor analytics</li>
-                    <li>Priority email support</li>
-                  </ul>
-                  <div className="s-actions">
-                    <button className="btn primary">Manage billing</button>
-                    <button className="btn">Change plan</button>
-                    <button className="btn danger">Cancel subscription</button>
-                  </div>
-                </div>
-              </div>
-              <div className="s-card">
-                <h3>Billing history</h3>
-                <div className="s-sub">Recent invoices and payments.</div>
-                <div className="journal-table-wrap">
-                  <table className="journal-table">
-                    <thead>
-                      <tr>
-                        <th>Date</th>
-                        <th>Description</th>
-                        <th>Amount</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {MOCK_BILLING_HISTORY.map((b) => (
-                        <tr key={b.id}>
-                          <td className="mono" style={{ fontSize: 12 }}>{new Date(b.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
-                          <td>{b.description}</td>
-                          <td className="mono">${b.amount.toFixed(2)}</td>
-                          <td><span className="pill win">{b.status.toUpperCase()}</span></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* API access */}
-          {activeTab === 'api' && (
-            <>
-              <div className="s-card">
-                <h3>API access</h3>
-                <div className="s-sub">Programmatic access to your account and StockPilot data.</div>
-                <div className="s-form">
-                  <div className="full"><label>API key</label><input readOnly value="sp_live_k8x2mQ9vR4wL7nP1tY6jB3hF0cD5aE8g" style={{ fontFamily: 'var(--mono)', letterSpacing: '.5px' }} /></div>
-                  <div><label>Created</label><input readOnly value="Jun 15, 2026" /></div>
-                  <div><label>Last used</label><input readOnly value="Jul 7, 2026 — 142 calls today" /></div>
-                </div>
-                <div className="s-actions">
-                  <button className="btn primary">Regenerate key</button>
-                  <button className="btn">Copy</button>
-                  <button className="btn danger">Revoke</button>
-                </div>
-              </div>
-              <div className="s-card">
-                <h3>Rate limits</h3>
-                <div className="s-sub">Requests permitted under your current plan.</div>
-                <div className="s-form">
-                  <div><label>Requests per minute</label><input readOnly value="60" /></div>
-                  <div><label>Requests per day</label><input readOnly value="10,000" /></div>
-                </div>
-              </div>
-            </>
-          )}
         </div>
       </div>
     </div>

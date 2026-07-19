@@ -1,11 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, ArcElement, Filler, Tooltip, Legend } from 'chart.js';
 import { Doughnut, Line } from 'react-chartjs-2';
 import { usePortfolio } from '../../hooks/usePortfolio';
 import { useWatchlist } from '../../hooks/useWatchlist';
 import { usePredictions } from '../../hooks/usePredictions';
 import { useNavigate } from 'react-router-dom';
-import { MOCK_PORTFOLIO_HISTORY, MOCK_SECTOR_BREAKDOWN } from '../../data/mock';
+import api from '../../api/client';
 import LoadingSpinner from '../ui/LoadingSpinner';
 import EmptyState from '../ui/EmptyState';
 
@@ -42,6 +42,13 @@ export default function Portfolio() {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [sortKey, setSortKey] = useState('ticker');
   const [sortDir, setSortDir] = useState('asc');
+  const [portfolioHistory, setPortfolioHistory] = useState([]);
+  const [sectorBreakdown, setSectorBreakdown] = useState([]);
+
+  useEffect(() => {
+    api.get('/api/v1/dashboard/portfolio-history').then(r => setPortfolioHistory(r.data?.portfolio || [])).catch(() => {});
+    api.get('/api/v1/dashboard/sector-breakdown').then(r => setSectorBreakdown(r.data)).catch(() => {});
+  }, []);
 
   const getPrediction = (ticker) => predictions.find((p) => p.ticker === ticker);
 
@@ -130,7 +137,7 @@ export default function Portfolio() {
     <div className="view-enter">
       <div className="eyebrow">Portfolio</div>
       <h1 className="page">Portfolio</h1>
-      <p className="lede">Track every position against the model's verdict. Add holdings, monitor P/L, and manage your watchlist.</p>
+      <p className="lede">Track every position against the model's verdict. Add holdings, monitor profit and loss, and manage your watchlist.</p>
 
       {/* Stat cards */}
       <div className="stat-grid">
@@ -145,7 +152,7 @@ export default function Portfolio() {
           <div className="s">average entry weighted</div>
         </div>
         <div className="stat">
-          <div className="k">Unrealised P/L</div>
+          <div className="k">Unrealised Profit / Loss</div>
           <div className={`v mono ${totalPL >= 0 ? 'up' : 'down'}`}>
             {totalPL >= 0 ? '+' : ''}{fmtMoney(totalPL)}
           </div>
@@ -180,14 +187,13 @@ export default function Portfolio() {
       )}
 
       {/* Holdings + Allocation */}
-      <div className="port-cols">
-        <div className="port-main">
-          {/* Holdings card */}
-          <div className="card pad">
+      <div className="port-masonry">
+          {/* Holdings card — full width */}
+          <div className="card pad port-full">
             <div className="port-card-head">
               <div>
                 <div className="ctitle"><span className="dot" />Holdings</div>
-                <div className="csub">Quantity, cost basis and current model verdict</div>
+                <div className="csub">Quantity, cost basis and current model verdict for each position</div>
               </div>
               <button className="btn gold" onClick={() => setShowAddForm(!showAddForm)}>
                 {showAddForm ? '✕ Cancel' : '+ Add position'}
@@ -220,7 +226,7 @@ export default function Portfolio() {
                     />
                   </div>
                   <div className="field">
-                    <label>Avg cost</label>
+                    <label>Average cost</label>
                     <input
                       type="number"
                       step="0.01"
@@ -247,11 +253,11 @@ export default function Portfolio() {
                   <thead>
                     <tr>
                       <th className="sortable" onClick={() => handleSort('ticker')}>Symbol{sortIcon('ticker')}</th>
-                      <th>Qty</th>
-                      <th>Avg cost</th>
+                      <th>Quantity</th>
+                      <th>Average Cost</th>
                       <th>Price</th>
-                      <th className="sortable" onClick={() => handleSort('mv')}>Mkt value{sortIcon('mv')}</th>
-                      <th className="sortable" onClick={() => handleSort('pl')}>P/L{sortIcon('pl')}</th>
+                      <th className="sortable" onClick={() => handleSort('mv')}>Market Value{sortIcon('mv')}</th>
+                      <th className="sortable" onClick={() => handleSort('pl')}>Profit / Loss{sortIcon('pl')}</th>
                       <th className="sortable" onClick={() => handleSort('plPct')}>%{sortIcon('plPct')}</th>
                       <th>Verdict</th>
                       <th></th>
@@ -314,10 +320,55 @@ export default function Portfolio() {
               </div>
             )}
           </div>
+
+        {/* Left column: Portfolio value */}
+        <div className="port-left">
+          <div className="card pad">
+            <div className="ctitle"><span className="dot" />Portfolio value</div>
+            <div className="csub">Historical portfolio growth</div>
+            <div className="chart-box" style={{ height: 220 }}>
+              <Line
+                data={{
+                  labels: portfolioHistory.map(d => d.date),
+                  datasets: [{
+                    label: 'Value', data: portfolioHistory.map(d => d.value),
+                    borderColor: '#d4a853', backgroundColor: 'rgba(212,168,83,.06)',
+                    borderWidth: 2, fill: true, tension: .35, pointRadius: 3, pointBackgroundColor: '#d4a853',
+                  }],
+                }}
+                options={{
+                  responsive: true, maintainAspectRatio: false,
+                  plugins: { legend: { display: false } },
+                  scales: {
+                    x: { grid: { color: GRID }, border: { display: false }, ticks: { color: '#71717a', font: chartFont } },
+                    y: { grid: { color: GRID }, border: { display: false }, ticks: { callback: v => '$' + (v / 1000).toFixed(0) + 'k', color: '#71717a', font: chartFont } },
+                  },
+                }}
+              />
+            </div>
+          </div>
+          <div className="card pad">
+            <div className="ctitle"><span className="dot" />Sector exposure</div>
+            <div className="csub">Breakdown by industry</div>
+            <div className="dash-sectors">
+              {sectorBreakdown.map((s) => (
+                <div key={s.sector} className="dash-sector-row">
+                  <div className="dash-sector-head">
+                    <span className="dash-sector-name">{s.sector}</span>
+                    <span className="dash-sector-pct mono">{s.weight.toFixed(1)}%</span>
+                  </div>
+                  <div className="dash-sector-bar">
+                    <div className="dash-sector-fill" style={{ width: `${s.weight}%` }} />
+                  </div>
+                  <span className="dash-sector-val mono">{fmtMoney(s.value)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
-        {/* Allocation chart */}
-        <div className="port-side">
+        {/* Right column: Allocation + Verdict */}
+        <div className="port-right">
           <div className="card pad">
             <div className="ctitle"><span className="dot" />Allocation</div>
             <div className="csub">Market value by position</div>
@@ -350,7 +401,7 @@ export default function Portfolio() {
                   {rows.map((r, i) => {
                     const pct = totalMV > 0 ? ((r.mv / totalMV) * 100).toFixed(1) : 0;
                     return (
-                      <div key={r.ticker} className="alloc-item">
+                      <div key={r.id || `${r.ticker}-${i}`} className="alloc-item">
                         <span className="alloc-dot" style={{ background: ALLOC_COLORS[i % ALLOC_COLORS.length] }} />
                         <span className="alloc-sym">{r.ticker}</span>
                         <span className="alloc-pct">{pct}%</span>
@@ -363,16 +414,15 @@ export default function Portfolio() {
             )}
           </div>
 
-          {/* Verdict summary */}
           {rows.length > 0 && (
-            <div className="card pad" style={{ marginTop: 16 }}>
+            <div className="card pad">
               <div className="ctitle"><span className="dot" />Verdict summary</div>
               <div className="csub">AI signals across your holdings</div>
               <div className="verdict-summary">
                 {['BUY', 'HOLD', 'SELL'].map((sig) => {
-                  const count = rows.filter(r => r.signal === sig).length;
+                  const matched = rows.filter(r => r.signal === sig);
                   const color = getSignalColor(sig);
-                  const pct = rows.length > 0 ? (count / rows.length) * 100 : 0;
+                  const pct = rows.length > 0 ? (matched.length / rows.length) * 100 : 0;
                   return (
                     <div key={sig} className="vs-row">
                       <div className="vs-label">
@@ -382,63 +432,20 @@ export default function Portfolio() {
                       <div className="vs-track">
                         <div className="vs-fill" style={{ width: `${pct}%`, background: color }} />
                       </div>
-                      <span className="vs-count">{count}</span>
+                      <span className="vs-count">{matched.length}</span>
+                      {matched.length > 0 && (
+                        <div className="vs-tickers">
+                          {matched.map((r) => (
+                            <span key={r.id || r.ticker} className="vs-ticker" style={{ color, borderColor: color + '44' }}>{r.ticker}</span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
               </div>
             </div>
           )}
-        </div>
-      </div>
-
-      {/* Portfolio value over time + Sector breakdown */}
-      <div className="port-cols" style={{ marginTop: 18 }}>
-        <div className="port-main">
-          <div className="card pad">
-            <div className="ctitle"><span className="dot" />Portfolio value</div>
-            <div className="csub">Historical portfolio growth</div>
-            <div className="chart-box" style={{ height: 220 }}>
-              <Line
-                data={{
-                  labels: MOCK_PORTFOLIO_HISTORY.map(d => d.date),
-                  datasets: [{
-                    label: 'Value', data: MOCK_PORTFOLIO_HISTORY.map(d => d.value),
-                    borderColor: '#d4a853', backgroundColor: 'rgba(212,168,83,.06)',
-                    borderWidth: 2, fill: true, tension: .35, pointRadius: 3, pointBackgroundColor: '#d4a853',
-                  }],
-                }}
-                options={{
-                  responsive: true, maintainAspectRatio: false,
-                  plugins: { legend: { display: false } },
-                  scales: {
-                    x: { grid: { color: GRID }, border: { display: false }, ticks: { color: '#71717a', font: chartFont } },
-                    y: { grid: { color: GRID }, border: { display: false }, ticks: { callback: v => '$' + (v / 1000).toFixed(0) + 'k', color: '#71717a', font: chartFont } },
-                  },
-                }}
-              />
-            </div>
-          </div>
-        </div>
-        <div className="port-side">
-          <div className="card pad">
-            <div className="ctitle"><span className="dot" />Sector exposure</div>
-            <div className="csub">Breakdown by industry</div>
-            <div className="dash-sectors">
-              {MOCK_SECTOR_BREAKDOWN.map((s) => (
-                <div key={s.sector} className="dash-sector-row">
-                  <div className="dash-sector-head">
-                    <span className="dash-sector-name">{s.sector}</span>
-                    <span className="dash-sector-pct mono">{s.weight.toFixed(1)}%</span>
-                  </div>
-                  <div className="dash-sector-bar">
-                    <div className="dash-sector-fill" style={{ width: `${s.weight}%` }} />
-                  </div>
-                  <span className="dash-sector-val mono">{fmtMoney(s.value)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
 

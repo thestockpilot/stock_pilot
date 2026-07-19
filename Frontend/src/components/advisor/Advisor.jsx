@@ -3,7 +3,8 @@ import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement
 import { Line, Bar, Radar } from 'react-chartjs-2';
 import { useStocks } from '../../hooks/useStocks';
 import { usePredictions } from '../../hooks/usePredictions';
-import { useMarketStatus, useLiveQuote, useChartData, useFactorAnalysis, useBacktest, useBullBear, useFundamentals } from '../../hooks/useLiveMarket';
+import { useMarketStatus, useLiveQuote, useChartData, useFactorAnalysis, useBacktest, useBullBear, useFundamentals, useSentiment } from '../../hooks/useLiveMarket';
+import { useAuth } from '../../context/AuthContext';
 import TradingChart from './TradingChart';
 import LoadingSpinner from '../ui/LoadingSpinner';
 import EmptyState from '../ui/EmptyState';
@@ -21,7 +22,7 @@ const FACTORS = [
   { key: 'growth', label: 'Growth / Fundamentals' },
 ];
 
-const DEFAULT_WEIGHTS = { sentiment: 18, momentum: 24, valuation: 20, volatility: 16, volume: 10, growth: 12 };
+const DEFAULT_WEIGHTS = { sentiment: 14, momentum: 22, valuation: 20, volatility: 18, volume: 10, growth: 16 };
 
 const PRESET_STRATEGIES = [
   { id: 'balanced', name: 'Balanced', ds: 'Even weighting across all six signals. A sensible default.', w: { ...DEFAULT_WEIGHTS } },
@@ -53,6 +54,7 @@ function factorColor(score) {
 export default function Advisor() {
   const { stocks } = useStocks();
   const { predictions } = usePredictions();
+  const { user } = useAuth();
   const marketStatus = useMarketStatus();
   const [ticker, setTicker] = useState('');
   const [searchInput, setSearchInput] = useState('');
@@ -65,6 +67,9 @@ export default function Advisor() {
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [saveName, setSaveName] = useState('');
   const [saving, setSaving] = useState(false);
+  const [publishing, setPublishing] = useState(null);
+  const [showPublishDialog, setShowPublishDialog] = useState(null);
+  const [publishPrice, setPublishPrice] = useState('');
 
   const fetchSavedStrategies = useCallback(async () => {
     try {
@@ -95,6 +100,22 @@ export default function Advisor() {
     } catch { /* ignore */ }
   };
 
+  const handlePublishStrategy = async (id) => {
+    setPublishing(id);
+    try {
+      const cents = Math.max(0, Math.round(parseFloat(publishPrice || '0') * 100));
+      await api.post(`/api/v1/strategies/${id}/publish`, { price_cents: cents });
+      setShowPublishDialog(null);
+      setPublishPrice('');
+      await fetchSavedStrategies();
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to submit for review');
+    }
+    setPublishing(null);
+  };
+
+  const isAnalystOrAdmin = user?.role === 'analyst' || user?.role === 'admin';
+
   const applySaved = (s) => {
     const w = s.weights || {};
     setWeights({
@@ -117,6 +138,7 @@ export default function Advisor() {
   const { backtest, loading: btLoading, refetch: runBacktest } = useBacktest(ticker, backtestPeriod, weights, profile.risk, profile.horizon, 0);
   const { data: bullBear, loading: bbLoading } = useBullBear(ticker, live ? 120000 : 0);
   const { fundamentals, loading: fundLoading } = useFundamentals(ticker, live ? 120000 : 0);
+  const { sentiment, loading: sentLoading } = useSentiment(ticker, live ? 120000 : 0);
 
   useEffect(() => {
     if (stocks.length > 0 && !ticker) {
@@ -274,10 +296,50 @@ export default function Advisor() {
                           </div>
                         ))}
                       </div>
+                      {isAnalystOrAdmin && !s.is_published && (
+                        <div className="strat-publish" onClick={(e) => { e.stopPropagation(); setShowPublishDialog(s.id); setPublishPrice(''); }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+                          Request to publish
+                        </div>
+                      )}
+                      {s.is_published && (
+                        <div className="strat-status published">Published</div>
+                      )}
                     </button>
                   ))}
                 </div>
               </>
+            )}
+
+            {/* Publish dialog */}
+            {showPublishDialog && (
+              <div className="save-dialog">
+                <div className="save-dialog-inner">
+                  <div className="save-title">Request to publish strategy</div>
+                  <p style={{ color: 'var(--muted)', fontSize: 13, margin: '8px 0 16px' }}>
+                    Your strategy will be submitted for admin review. Set a price (or leave at $0 for free).
+                  </p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                    <span style={{ color: 'var(--muted)' }}>Price $</span>
+                    <input
+                      className="save-input"
+                      style={{ width: 120 }}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={publishPrice}
+                      onChange={(e) => setPublishPrice(e.target.value)}
+                    />
+                  </div>
+                  <div className="save-actions">
+                    <button className="btn" onClick={() => { setShowPublishDialog(null); setPublishPrice(''); }}>Cancel</button>
+                    <button className="btn gold" onClick={() => handlePublishStrategy(showPublishDialog)} disabled={publishing}>
+                      {publishing ? 'Submitting...' : 'Submit for review'}
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
 
             {/* Weight sliders — always visible */}
@@ -610,6 +672,73 @@ export default function Advisor() {
             </div>
           </div>
 
+          {/* News Sentiment (FinBERT) */}
+          <div className="card pad" style={{ marginTop: 18 }}>
+            <div className="ctitle"><span className="dot" />News sentiment <span className="sent-badge">FinBERT</span></div>
+            <div className="csub">AI-powered headline analysis using the ProsusAI/finbert transformer model</div>
+            {sentLoading && !sentiment ? (
+              <div style={{ padding: 40, textAlign: 'center' }}><LoadingSpinner /></div>
+            ) : sentiment && sentiment.headline_count > 0 ? (
+              <>
+                <div className="sent-overview">
+                  <div className="sent-score-ring">
+                    <svg viewBox="0 0 80 80" className="sent-ring-svg">
+                      <circle cx="40" cy="40" r="34" fill="none" stroke="var(--border)" strokeWidth="6" />
+                      <circle cx="40" cy="40" r="34" fill="none"
+                        stroke={sentiment.overall_score >= 62 ? 'var(--bull)' : sentiment.overall_score <= 38 ? 'var(--bear)' : 'var(--accent)'}
+                        strokeWidth="6" strokeLinecap="round"
+                        strokeDasharray={`${(sentiment.overall_score / 100) * 213.6} 213.6`}
+                        transform="rotate(-90 40 40)"
+                      />
+                    </svg>
+                    <div className="sent-score-value">{sentiment.overall_score.toFixed(0)}</div>
+                    <div className="sent-score-label">{sentiment.overall_label}</div>
+                  </div>
+                  <div className="sent-counts">
+                    <div className="sent-count">
+                      <span className="sent-count-dot" style={{ background: 'var(--bull)' }} />
+                      <span className="sent-count-num">{sentiment.positive_count}</span>
+                      <span className="sent-count-label">positive</span>
+                    </div>
+                    <div className="sent-count">
+                      <span className="sent-count-dot" style={{ background: 'var(--muted)' }} />
+                      <span className="sent-count-num">{sentiment.neutral_count}</span>
+                      <span className="sent-count-label">neutral</span>
+                    </div>
+                    <div className="sent-count">
+                      <span className="sent-count-dot" style={{ background: 'var(--bear)' }} />
+                      <span className="sent-count-num">{sentiment.negative_count}</span>
+                      <span className="sent-count-label">negative</span>
+                    </div>
+                    <div className="sent-count">
+                      <span className="sent-count-dot" style={{ background: 'var(--accent)' }} />
+                      <span className="sent-count-num">{sentiment.headline_count}</span>
+                      <span className="sent-count-label">headlines</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="sent-headlines">
+                  {sentiment.headlines.map((h, i) => (
+                    <div key={i} className="sent-hl">
+                      <div className="sent-hl-bar">
+                        <div className="sent-hl-fill" style={{
+                          width: `${h.score}%`,
+                          background: h.label === 'positive' ? 'var(--bull)' : h.label === 'negative' ? 'var(--bear)' : 'var(--muted2)',
+                        }} />
+                      </div>
+                      <div className="sent-hl-score" style={{
+                        color: h.label === 'positive' ? 'var(--bull)' : h.label === 'negative' ? 'var(--bear)' : 'var(--muted)',
+                      }}>{h.score.toFixed(0)}</div>
+                      <div className="sent-hl-text">{h.headline}</div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <EmptyState icon="📰" message="No recent news headlines available for sentiment analysis" />
+            )}
+          </div>
+
           {/* Backtest performance */}
           <div className="card pad" style={{ marginTop: 18 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', marginBottom: 4 }}>
@@ -720,19 +849,19 @@ export default function Advisor() {
                     <span className="fund-value">{fmtBigNum(fundamentals.market_cap)}</span>
                   </div>
                   <div className="fund-row">
-                    <span className="fund-label">P/E Ratio</span>
+                    <span className="fund-label">Price to Earnings</span>
                     <span className={`fund-value ${fundamentals.pe_ratio && fundamentals.pe_ratio < 25 ? 'val-good' : fundamentals.pe_ratio && fundamentals.pe_ratio > 40 ? 'val-warn' : ''}`}>{fundamentals.pe_ratio?.toFixed(1) || '—'}</span>
                   </div>
                   <div className="fund-row">
-                    <span className="fund-label">Forward P/E</span>
+                    <span className="fund-label">Forward Price to Earnings</span>
                     <span className="fund-value">{fundamentals.forward_pe?.toFixed(1) || '—'}</span>
                   </div>
                   <div className="fund-row">
-                    <span className="fund-label">PEG Ratio</span>
+                    <span className="fund-label">Price/Earnings to Growth</span>
                     <span className={`fund-value ${fundamentals.peg_ratio && fundamentals.peg_ratio < 1 ? 'val-good' : fundamentals.peg_ratio && fundamentals.peg_ratio > 2 ? 'val-warn' : ''}`}>{fundamentals.peg_ratio?.toFixed(2) || '—'}</span>
                   </div>
                   <div className="fund-row">
-                    <span className="fund-label">P/B Ratio</span>
+                    <span className="fund-label">Price to Book</span>
                     <span className="fund-value">{fundamentals.price_to_book?.toFixed(2) || '—'}</span>
                   </div>
                 </div>
@@ -740,7 +869,7 @@ export default function Advisor() {
                 <div className="fund-group">
                   <div className="fund-group-title">Earnings & Income</div>
                   <div className="fund-row">
-                    <span className="fund-label">EPS</span>
+                    <span className="fund-label">Earnings per Share</span>
                     <span className={`fund-value ${fundamentals.eps && fundamentals.eps > 0 ? 'val-good' : 'val-warn'}`}>{fundamentals.eps ? `$${fundamentals.eps.toFixed(2)}` : '—'}</span>
                   </div>
                   <div className="fund-row">
@@ -764,11 +893,11 @@ export default function Advisor() {
                     <span className={`fund-value ${fundamentals.beta && fundamentals.beta > 1.5 ? 'val-warn' : fundamentals.beta && fundamentals.beta <= 1.2 ? 'val-good' : ''}`}>{fundamentals.beta?.toFixed(2) || '—'}</span>
                   </div>
                   <div className="fund-row">
-                    <span className="fund-label">ROE</span>
+                    <span className="fund-label">Return on Equity</span>
                     <span className={`fund-value ${fundamentals.roe && fundamentals.roe > 0.15 ? 'val-good' : fundamentals.roe && fundamentals.roe < 0.05 ? 'val-warn' : ''}`}>{fundamentals.roe ? `${(fundamentals.roe * 100).toFixed(1)}%` : '—'}</span>
                   </div>
                   <div className="fund-row">
-                    <span className="fund-label">Debt / Equity</span>
+                    <span className="fund-label">Debt to Equity</span>
                     <span className={`fund-value ${fundamentals.debt_to_equity && fundamentals.debt_to_equity > 200 ? 'val-warn' : fundamentals.debt_to_equity && fundamentals.debt_to_equity < 100 ? 'val-good' : ''}`}>{fundamentals.debt_to_equity ? `${fundamentals.debt_to_equity.toFixed(0)}%` : '—'}</span>
                   </div>
                 </div>

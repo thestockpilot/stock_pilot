@@ -1,6 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMarketplace } from '../../hooks/useMarketplace';
+import { useAuth } from '../../context/AuthContext';
+import api from '../../api/client';
 import LoadingSpinner from '../ui/LoadingSpinner';
 import EmptyState from '../ui/EmptyState';
 
@@ -13,12 +15,44 @@ const SORT_OPTIONS = [
   { value: 'newest', label: 'Newest' },
 ];
 
+const THRESHOLDS = [
+  { key: 'trades', op: '≥', val: '100', label: 'Min. trades', icon: (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 3v18h18"/><path d="M7 16l4-8 4 4 6-6"/>
+    </svg>
+  )},
+  { key: 'winrate', op: '≥', val: '65%', label: 'Win rate', icon: (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>
+    </svg>
+  )},
+  { key: 'sharpe', op: '≥', val: '1.0', label: 'Sharpe ratio', icon: (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+    </svg>
+  )},
+  { key: 'drawdown', op: '≤', val: '15%', label: 'Max drawdown', icon: (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2v20M2 12h20"/><path d="M2 7h5M17 7h5M2 17h5M17 17h5"/>
+    </svg>
+  )},
+  { key: 'profit', op: '≥', val: '1.5', label: 'Profit factor', icon: (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+    </svg>
+  )},
+];
+
 export default function Marketplace() {
   const navigate = useNavigate();
-  const { listings, loading } = useMarketplace();
+  const { user } = useAuth();
+  const { listings, loading, refetch } = useMarketplace();
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState('rating');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [showPublish, setShowPublish] = useState(false);
+
+  const isAnalyst = user?.role === 'analyst' || user?.role === 'admin';
 
   const filtered = useMemo(() => {
     let items = [...listings];
@@ -51,35 +85,9 @@ export default function Marketplace() {
       <p className="lede">Verified factor weight configurations published by analysts. Every strategy must pass an objective backtest against the thresholds below before it can be listed.</p>
 
       <div className="thresh-grid">
-        {[
-          { op: '≥', val: '100', label: 'Min. trades', icon: (
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 3v18h18"/><path d="M7 16l4-8 4 4 6-6"/>
-            </svg>
-          )},
-          { op: '≥', val: '65%', label: 'Win rate', icon: (
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>
-            </svg>
-          )},
-          { op: '≥', val: '1.0', label: 'Sharpe ratio', icon: (
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-            </svg>
-          )},
-          { op: '≤', val: '15%', label: 'Max drawdown', icon: (
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2v20M2 12h20"/><path d="M2 7h5M17 7h5M2 17h5M17 17h5"/>
-            </svg>
-          )},
-          { op: '≥', val: '1.5', label: 'Profit factor', icon: (
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-            </svg>
-          )},
-        ].map((t, i) => (
-          <div key={i} className={`thresh-card${t.featured ? ' featured' : ''}`}>
-            <div className={`thresh-icon${t.featured ? ' featured' : ''}`}>{t.icon}</div>
+        {THRESHOLDS.map((t, i) => (
+          <div key={i} className="thresh-card">
+            <div className="thresh-icon">{t.icon}</div>
             <div className="thresh-val">{t.op} {t.val}</div>
             <div className="thresh-label">{t.label}</div>
           </div>
@@ -124,7 +132,7 @@ export default function Marketplace() {
         </div>
       </div>
       {filtered.length === 0 ? (
-        <EmptyState icon="🏪" message={search ? 'No strategies match your search.' : 'No strategies listed yet.'} />
+        <EmptyState icon="&#x1f3ea;" message={search ? 'No strategies match your search.' : 'No strategies listed yet.'} />
       ) : (
         <div className="strategy-grid">
           {filtered.map((listing) => {
@@ -181,13 +189,181 @@ export default function Marketplace() {
         </div>
       )}
 
+      {/* Publish CTA for analysts */}
       <div className="sec-label">For analysts</div>
-      <div className="card pad creator-cta">
-        <div>
-          <div className="ctitle"><span className="dot" />Publish a strategy</div>
-          <div className="csub" style={{ marginBottom: 0 }}>Analysts design factor weights, submit for automatic backtesting, and earn from every sale. The underlying model is not modified.</div>
+      {isAnalyst ? (
+        <div className="card pad creator-cta">
+          <div>
+            <div className="ctitle"><span className="dot" />Publish a strategy</div>
+            <div className="csub" style={{ marginBottom: 0 }}>Submit your strategy for review. It must pass all backtest thresholds before it can be listed on the marketplace.</div>
+          </div>
+          <button className="btn gold" onClick={() => setShowPublish(true)}>Publish Strategy</button>
         </div>
-        <button className="btn primary">Apply as analyst</button>
+      ) : (
+        <div className="card pad creator-cta">
+          <div>
+            <div className="ctitle"><span className="dot" />Publish a strategy</div>
+            <div className="csub" style={{ marginBottom: 0 }}>Analysts design factor weights, submit for automatic backtesting, and earn from every sale. Contact an admin to get analyst access.</div>
+          </div>
+          <button className="btn" disabled style={{ opacity: .5 }}>Analyst role required</button>
+        </div>
+      )}
+
+      {/* Publish Dialog */}
+      {showPublish && (
+        <PublishDialog onClose={() => setShowPublish(false)} onPublished={() => { setShowPublish(false); refetch(); }} />
+      )}
+    </div>
+  );
+}
+
+
+function PublishDialog({ onClose, onPublished }) {
+  const [strategies, setStrategies] = useState([]);
+  const [selectedId, setSelectedId] = useState('');
+  const [priceDollars, setPriceDollars] = useState('');
+  const [backtestTrades, setBacktestTrades] = useState('');
+  const [backtestWinrate, setBacktestWinrate] = useState('');
+  const [backtestSharpe, setBacktestSharpe] = useState('');
+  const [backtestDrawdown, setBacktestDrawdown] = useState('');
+  const [backtestProfitFactor, setBacktestProfitFactor] = useState('');
+  const [backtestReturn, setBacktestReturn] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+  const [loadingStrats, setLoadingStrats] = useState(true);
+
+  useEffect(() => {
+    api.get('/api/v1/strategies').then(res => {
+      const owned = (res.data || []).filter(s => !s.is_preset && !s.is_published);
+      setStrategies(owned);
+      if (owned.length > 0) setSelectedId(owned[0].id);
+    }).catch(() => {}).finally(() => setLoadingStrats(false));
+  }, []);
+
+  const trades = parseInt(backtestTrades) || 0;
+  const winrate = parseFloat(backtestWinrate) / 100 || 0;
+  const sharpe = parseFloat(backtestSharpe) || 0;
+  const drawdown = parseFloat(backtestDrawdown) / 100 || 0;
+  const profitFactor = parseFloat(backtestProfitFactor) || 0;
+  const retPct = parseFloat(backtestReturn) / 100 || 0;
+
+  const checks = [
+    { label: 'Trades', met: trades >= 100, val: `${trades}`, req: '100' },
+    { label: 'Win Rate', met: winrate >= 0.65, val: `${(winrate * 100).toFixed(0)}%`, req: '65%' },
+    { label: 'Sharpe', met: sharpe >= 1.0, val: sharpe.toFixed(2), req: '1.0' },
+    { label: 'Drawdown', met: drawdown <= 0.15 && drawdown > 0, val: `${(drawdown * 100).toFixed(0)}%`, req: '≤15%' },
+    { label: 'Profit Factor', met: profitFactor >= 1.5, val: profitFactor.toFixed(2), req: '1.5' },
+  ];
+  const allMet = checks.every(c => c.met);
+
+  const handleSubmit = async () => {
+    if (!selectedId || !allMet) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      await api.post(`/api/v1/strategies/${selectedId}/publish`, {
+        price_cents: Math.round((parseFloat(priceDollars) || 0) * 100),
+        backtest_trades: trades,
+        backtest_winrate: winrate,
+        backtest_sharpe: sharpe,
+        backtest_max_drawdown: drawdown,
+        backtest_profit_factor: profitFactor,
+        backtest_return: retPct,
+      });
+      onPublished();
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to submit strategy');
+    }
+    setSubmitting(false);
+  };
+
+  return (
+    <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="modal-content" style={{ maxWidth: 540 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h2 style={{ margin: 0, fontSize: 20 }}>Publish Strategy</h2>
+          <button className="btn" onClick={onClose} style={{ padding: '4px 12px', fontSize: 18, lineHeight: 1 }}>&times;</button>
+        </div>
+
+        {loadingStrats ? (
+          <div style={{ textAlign: 'center', padding: 40 }}><div className="spinner" /></div>
+        ) : strategies.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--muted)' }}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>&#x1f4cb;</div>
+            <div>No unpublished strategies found. Create a strategy in the Advisor first.</div>
+          </div>
+        ) : (
+          <>
+            <div className="publish-field">
+              <label>Strategy</label>
+              <select value={selectedId} onChange={(e) => setSelectedId(e.target.value)} className="publish-select">
+                {strategies.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+
+            <div className="publish-field">
+              <label>Price (USD) — leave empty for free</label>
+              <input type="number" min="0" step="0.01" value={priceDollars} onChange={(e) => setPriceDollars(e.target.value)} placeholder="0.00" className="publish-input" />
+            </div>
+
+            <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '.5px', color: 'var(--muted)', fontWeight: 500, marginTop: 20, marginBottom: 10 }}>
+              Backtest Results
+            </div>
+            <div className="publish-bt-grid">
+              <div className="publish-field">
+                <label>Total Trades</label>
+                <input type="number" min="0" value={backtestTrades} onChange={(e) => setBacktestTrades(e.target.value)} placeholder="e.g. 150" className="publish-input" />
+              </div>
+              <div className="publish-field">
+                <label>Win Rate (%)</label>
+                <input type="number" min="0" max="100" step="0.1" value={backtestWinrate} onChange={(e) => setBacktestWinrate(e.target.value)} placeholder="e.g. 68" className="publish-input" />
+              </div>
+              <div className="publish-field">
+                <label>Sharpe Ratio</label>
+                <input type="number" step="0.01" value={backtestSharpe} onChange={(e) => setBacktestSharpe(e.target.value)} placeholder="e.g. 1.25" className="publish-input" />
+              </div>
+              <div className="publish-field">
+                <label>Max Drawdown (%)</label>
+                <input type="number" min="0" max="100" step="0.1" value={backtestDrawdown} onChange={(e) => setBacktestDrawdown(e.target.value)} placeholder="e.g. 12" className="publish-input" />
+              </div>
+              <div className="publish-field">
+                <label>Profit Factor</label>
+                <input type="number" min="0" step="0.01" value={backtestProfitFactor} onChange={(e) => setBacktestProfitFactor(e.target.value)} placeholder="e.g. 1.8" className="publish-input" />
+              </div>
+              <div className="publish-field">
+                <label>Return (%)</label>
+                <input type="number" step="0.1" value={backtestReturn} onChange={(e) => setBacktestReturn(e.target.value)} placeholder="e.g. 24.5" className="publish-input" />
+              </div>
+            </div>
+
+            {/* Threshold checks */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 16 }}>
+              {checks.map((c) => (
+                <div key={c.label} style={{
+                  padding: '5px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+                  background: c.met ? 'rgba(34,197,94,.08)' : 'rgba(239,68,68,.08)',
+                  border: `1px solid ${c.met ? 'rgba(34,197,94,.2)' : 'rgba(239,68,68,.2)'}`,
+                  color: c.met ? 'var(--bull)' : 'var(--bear)',
+                }}>
+                  {c.met ? '✓' : '✗'} {c.label}: {c.val} / {c.req}
+                </div>
+              ))}
+            </div>
+
+            {error && (
+              <div style={{ marginTop: 12, padding: '8px 12px', borderRadius: 6, background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.2)', color: 'var(--bear)', fontSize: 13 }}>
+                {error}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+              <button className="btn" onClick={onClose}>Cancel</button>
+              <button className="btn gold" onClick={handleSubmit} disabled={!allMet || submitting}>
+                {submitting ? 'Submitting...' : allMet ? 'Submit for Review' : 'Thresholds not met'}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

@@ -1,35 +1,43 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../api/client';
-import { MOCK_WATCHLIST } from '../data/mock';
+import { getCached, setCache, clearCache } from '../api/cache';
+
+const KEY = 'watchlist';
 
 export function useWatchlist() {
-  const [watchlist, setWatchlist] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [watchlist, setWatchlist] = useState(() => getCached(KEY) || []);
+  const [loading, setLoading] = useState(!getCached(KEY));
   const [error, setError] = useState(null);
 
   const fetchWatchlist = useCallback(async () => {
-    setLoading(true);
     setError(null);
     try {
       const { data } = await api.get('/api/v1/watchlist');
       const items = Array.isArray(data) ? data : data.items || [];
-      setWatchlist(items.length > 0 ? items : MOCK_WATCHLIST);
+      setWatchlist(items);
+      setCache(KEY, items);
     } catch (err) {
-      setWatchlist(MOCK_WATCHLIST);
+      setError(err);
+      setWatchlist([]);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { fetchWatchlist(); }, [fetchWatchlist]);
+  useEffect(() => {
+    if (getCached(KEY)) { setLoading(false); return; }
+    fetchWatchlist();
+  }, [fetchWatchlist]);
 
   const addToWatchlist = async (ticker) => {
     await api.post('/api/v1/watchlist', { ticker });
+    clearCache(KEY);
     await fetchWatchlist();
   };
 
   const removeFromWatchlist = async (ticker) => {
     await api.delete(`/api/v1/watchlist/${ticker}`);
+    clearCache(KEY);
     await fetchWatchlist();
   };
 

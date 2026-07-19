@@ -10,6 +10,7 @@ class PredictionOut(BaseModel):
     confidence: float
     probability_up: float
     probability_down: float
+    composite_score: int | None = None
     model_version: str
     created_at: datetime
 
