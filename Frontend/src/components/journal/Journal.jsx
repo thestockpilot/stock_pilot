@@ -149,18 +149,18 @@ export default function Journal() {
     <div className="view-enter">
       <div className="eyebrow">Journal</div>
       <h1 className="page">Trading Journal</h1>
-      <p className="lede">Log every trade. P/L, R-multiple, duration, win rate, and equity growth are calculated automatically.</p>
+      <p className="lede">Log every trade. Profit / Loss, risk-reward multiple, duration, win rate, and equity growth are calculated automatically.</p>
 
       {/* Stats row */}
       <div className="j-stat-row">
         <div className="j-stat-card accent">
-          <div className="j-stat-k">Net P/L</div>
+          <div className="j-stat-k">Net Profit / Loss</div>
           <div className={`j-stat-v ${stats.net >= 0 ? 'up' : 'down'}`}>{fmtMoney(stats.net)}</div>
         </div>
         <div className="j-stat-card">
           <div className="j-stat-k">Trades</div>
           <div className="j-stat-v">{stats.total}</div>
-          <div className="j-stat-s">{stats.wins}W / {stats.losses}L / {stats.be}BE</div>
+          <div className="j-stat-s">{stats.wins} Win / {stats.losses} Loss / {stats.be} Even</div>
         </div>
         <div className="j-stat-card">
           <div className="j-stat-k">Win rate</div>
@@ -187,7 +187,7 @@ export default function Journal() {
         {/* Equity curve */}
         <div className="card pad j-chart-card">
           <div className="ctitle" style={{ fontSize: 14 }}><span className="dot" />Equity curve</div>
-          <div className="csub">Cumulative P/L over time</div>
+          <div className="csub">Cumulative Profit / Loss over time</div>
           <div className="chart-box" style={{ height: 220 }}>
             {equityData.length > 1 ? (
               <Line
@@ -216,7 +216,7 @@ export default function Journal() {
 
         {/* Monthly P/L */}
         <div className="card pad j-chart-card">
-          <div className="ctitle" style={{ fontSize: 14 }}><span className="dot" />Monthly P/L</div>
+          <div className="ctitle" style={{ fontSize: 14 }}><span className="dot" />Monthly Profit / Loss</div>
           <div className="csub">Profit and loss by calendar month</div>
           <div className="chart-box" style={{ height: 220 }}>
             {monthlyPnL.labels.length > 0 ? (
@@ -272,11 +272,11 @@ export default function Journal() {
       {stats.total > 0 && (
         <div className="j-extended-stats">
           <div className="j-ext-stat">
-            <span className="j-ext-k">Avg win</span>
+            <span className="j-ext-k">Average win</span>
             <span className="j-ext-v up">{fmtMoney(stats.avgWin)}</span>
           </div>
           <div className="j-ext-stat">
-            <span className="j-ext-k">Avg loss</span>
+            <span className="j-ext-k">Average loss</span>
             <span className="j-ext-v down">{fmtMoney(stats.avgLoss)}</span>
           </div>
           <div className="j-ext-stat">
@@ -303,7 +303,7 @@ export default function Journal() {
         <div className="j-charts-row" style={{ marginTop: 18 }}>
           <div className="card pad j-chart-card">
             <div className="ctitle" style={{ fontSize: 14 }}><span className="dot" />By strategy</div>
-            <div className="csub">P/L grouped by strategy label</div>
+            <div className="csub">Profit / Loss grouped by strategy label</div>
             <div className="chart-box" style={{ height: 220 }}>
               {(() => {
                 const byStrat = {};
@@ -454,9 +454,9 @@ export default function Journal() {
                     const t = calcTrade({ ...form, entry_price: +form.entry_price, exit_price: +form.exit_price, quantity: +form.quantity, stop_loss: form.stop_loss ? +form.stop_loss : 0, take_profit: form.take_profit ? +form.take_profit : 0 });
                     return (
                       <>
-                        <span className={`j-fp-pnl ${t.pnl >= 0 ? 'up' : 'down'}`}>P/L: {t.pnl >= 0 ? '+' : ''}{fmtMoney(t.pnl)}</span>
+                        <span className={`j-fp-pnl ${t.pnl >= 0 ? 'up' : 'down'}`}>Profit / Loss: {t.pnl >= 0 ? '+' : ''}{fmtMoney(t.pnl)}</span>
                         <span className={`j-fp-status ${t.status}`}>{t.status.toUpperCase()}</span>
-                        {t.rr != null && isFinite(t.rr) && <span className="j-fp-rr">R:R 1:{t.rr.toFixed(1)}</span>}
+                        {t.rr != null && isFinite(t.rr) && <span className="j-fp-rr">Risk / Reward 1:{t.rr.toFixed(1)}</span>}
                       </>
                     );
                   })()}
@@ -512,11 +512,11 @@ export default function Journal() {
                   <th>Date</th>
                   <th>Symbol</th>
                   <th>Side</th>
-                  <th>Qty</th>
+                  <th>Quantity</th>
                   <th>Entry</th>
                   <th>Exit</th>
-                  <th>P/L</th>
-                  <th>R:R</th>
+                  <th>Profit / Loss</th>
+                  <th>Risk / Reward</th>
                   <th>Result</th>
                   <th>Duration</th>
                   <th></th>

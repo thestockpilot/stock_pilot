@@ -1,36 +1,44 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../api/client';
-import { MOCK_TRADES } from '../data/mock';
+import { getCached, setCache, clearCache } from '../api/cache';
+
+const KEY = 'trades';
 
 export function useTrades() {
-  const [trades, setTrades] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [trades, setTrades] = useState(() => getCached(KEY) || []);
+  const [loading, setLoading] = useState(!getCached(KEY));
   const [error, setError] = useState(null);
 
   const fetchTrades = useCallback(async () => {
-    setLoading(true);
     setError(null);
     try {
       const { data } = await api.get('/api/v1/trades');
       const items = Array.isArray(data) ? data : data.items || [];
-      setTrades(items.length > 0 ? items : MOCK_TRADES);
+      setTrades(items);
+      setCache(KEY, items);
     } catch (err) {
-      setTrades(MOCK_TRADES);
+      setError(err);
+      setTrades([]);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { fetchTrades(); }, [fetchTrades]);
+  useEffect(() => {
+    if (getCached(KEY)) { setLoading(false); return; }
+    fetchTrades();
+  }, [fetchTrades]);
 
   const createTrade = async (trade) => {
     const { data } = await api.post('/api/v1/trades', trade);
+    clearCache(KEY);
     await fetchTrades();
     return data;
   };
 
   const deleteTrade = async (id) => {
     await api.delete(`/api/v1/trades/${id}`);
+    clearCache(KEY);
     await fetchTrades();
   };
 

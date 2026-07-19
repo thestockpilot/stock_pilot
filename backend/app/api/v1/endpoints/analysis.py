@@ -18,6 +18,7 @@ from pydantic import BaseModel
 from app.core.dependencies import get_current_user
 from app.services.market_data.fetcher import DataFetcher
 from app.services.indicators.featureEngine import FeatureEngine
+from app.services.sentiment.finbert import analyze_ticker as finbert_analyze
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/analysis", tags=["analysis"])
@@ -139,14 +140,21 @@ def _compute_factor_scores(ticker: str) -> dict:
     growth_raw = np.clip(roc / 20, -1, 1) * 0.5 + 0.5 + above_sma * 0.3
     scores["growth"] = {"score": round(np.clip(growth_raw * 100 / 1.8, 0, 100), 1), "label": "Growth / Fundamentals"}
 
-    # 6. Sentiment — use OBV trend as proxy (no FinBERT)
-    obv_series = df["OBV"].tail(20)
-    if len(obv_series) >= 2:
-        obv_trend = (obv_series.iloc[-1] - obv_series.iloc[0]) / (abs(obv_series.iloc[0]) + 1)
-        sent_score = np.clip(0.5 + obv_trend * 5, 0, 1)
-    else:
-        sent_score = 0.5
-    scores["sentiment"] = {"score": round(sent_score * 100, 1), "label": "News Sentiment"}
+    # 6. Sentiment — FinBERT on recent news headlines, OBV trend as fallback
+    try:
+        finbert_result = finbert_analyze(ticker, max_headlines=10)
+        if finbert_result.headline_count > 0:
+            sent_score = finbert_result.overall_score
+        else:
+            raise ValueError("no headlines")
+    except Exception:
+        obv_series = df["OBV"].tail(20)
+        if len(obv_series) >= 2:
+            obv_trend = (obv_series.iloc[-1] - obv_series.iloc[0]) / (abs(obv_series.iloc[0]) + 1)
+            sent_score = round(np.clip(0.5 + obv_trend * 5, 0, 1) * 100, 1)
+        else:
+            sent_score = 50.0
+    scores["sentiment"] = {"score": round(np.clip(sent_score, 0, 100), 1), "label": "News Sentiment (FinBERT)"}
 
     return scores
 
@@ -197,12 +205,12 @@ def _generate_bull_bear(ticker: str, scores: dict) -> tuple[list[str], list[str]
     elif g < 40:
         bear.append("Negative rate of change with price below SMA-20 — growth metrics deteriorating")
 
-    # Sentiment
+    # Sentiment (FinBERT)
     s = scores.get("sentiment", {}).get("score", 50)
     if s > 60:
-        bull.append("Rising on-balance volume signals accumulation — smart money appears to be buying")
+        bull.append("FinBERT detects positive news sentiment — recent headlines signal bullish market perception")
     elif s < 40:
-        bear.append("Falling on-balance volume indicates distribution — institutional selling pressure")
+        bear.append("FinBERT detects negative news sentiment — recent headlines signal bearish market perception")
 
     # Fundamentals from yfinance
     pe = _safe(info.get("trailingPE"))
@@ -230,12 +238,12 @@ def _generate_bull_bear(ticker: str, scores: dict) -> tuple[list[str], list[str]
 @router.get("/{ticker}/factors", response_model=FactorAnalysisResponse)
 async def get_factor_analysis(
     ticker: str,
-    w_sentiment: float = Query(default=18),
-    w_momentum: float = Query(default=24),
+    w_sentiment: float = Query(default=14),
+    w_momentum: float = Query(default=22),
     w_valuation: float = Query(default=20),
-    w_volatility: float = Query(default=16),
+    w_volatility: float = Query(default=18),
     w_volume: float = Query(default=10),
-    w_growth: float = Query(default=12),
+    w_growth: float = Query(default=16),
     _=Depends(get_current_user),
 ):
     ticker = ticker.upper()
@@ -347,12 +355,12 @@ HORIZON_CONFIG = {
 async def get_backtest(
     ticker: str,
     period: str = Query(default="1y", regex="^(6mo|1y|2y|5y)$"),
-    w_sentiment: float = Query(default=18),
-    w_momentum: float = Query(default=24),
+    w_sentiment: float = Query(default=14),
+    w_momentum: float = Query(default=22),
     w_valuation: float = Query(default=20),
-    w_volatility: float = Query(default=16),
+    w_volatility: float = Query(default=18),
     w_volume: float = Query(default=10),
-    w_growth: float = Query(default=12),
+    w_growth: float = Query(default=16),
     risk: str = Query(default="Moderate", regex="^(Conservative|Moderate|Aggressive)$"),
     horizon: str = Query(default="Medium", regex="^(Short|Medium|Long)$"),
     _=Depends(get_current_user),

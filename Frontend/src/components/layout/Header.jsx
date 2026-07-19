@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../hooks/useNotifications';
 
-const NAV_TABS = [
+const BASE_TABS = [
   { key: '/', label: 'Dashboard' },
   { key: '/advisor', label: 'Advisor' },
   { key: '/marketplace', label: 'Marketplace' },
@@ -29,6 +29,11 @@ export default function Header() {
     document.addEventListener('click', handler);
     return () => document.removeEventListener('click', handler);
   }, []);
+
+  const isAdmin = user?.role === 'admin';
+  const NAV_TABS = isAdmin
+    ? [...BASE_TABS, { key: '/admin', label: 'Admin' }]
+    : BASE_TABS;
 
   const initials = user?.full_name
     ? user.full_name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
@@ -133,7 +138,12 @@ export default function Header() {
               <div className="u-header">
                 <div className="avatar-circle">{initials}</div>
                 <div className="u-info">
-                  <div className="u-name">{user?.full_name || 'User'}</div>
+                  <div className="u-name">
+                    {user?.full_name || 'User'}
+                    {user?.role && user.role !== 'investor' && (
+                      <span className={`role-pill ${user.role}`} style={{ marginLeft: 8, fontSize: 10, verticalAlign: 'middle' }}>{user.role}</span>
+                    )}
+                  </div>
                   <div className="u-email">{user?.email || ''}</div>
                 </div>
               </div>

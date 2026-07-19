@@ -7,6 +7,13 @@
       "runtimeArgs": ["node_modules/vite/bin/vite.js", "--host"],
       "port": 5173,
       "cwd": "Frontend"
+    },
+    {
+      "name": "backend",
+      "runtimeExecutable": "C:\\Users\\Pasindu\\Desktop\\stock pilot\\backend\\.venv\\Scripts\\python.exe",
+      "runtimeArgs": ["-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"],
+      "port": 8000,
+      "cwd": "backend"
     }
   ]
 }

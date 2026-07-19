@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Filler, Legend, Tooltip } from 'chart.js';
 import { Line, Doughnut, Bar } from 'react-chartjs-2';
@@ -7,7 +7,7 @@ import { useWatchlist } from '../../hooks/useWatchlist';
 import { useTrades } from '../../hooks/useTrades';
 import { usePredictions } from '../../hooks/usePredictions';
 import { useMarketplace } from '../../hooks/useMarketplace';
-import { MOCK_PORTFOLIO_HISTORY, MOCK_BENCHMARK, MOCK_SECTOR_BREAKDOWN, MOCK_MARKET_INDICES } from '../../data/mock';
+import api from '../../api/client';
 import LoadingSpinner from '../ui/LoadingSpinner';
 import EmptyState from '../ui/EmptyState';
 
@@ -36,6 +36,18 @@ export default function Dashboard() {
   const { trades } = useTrades();
   const { predictions } = usePredictions();
   const { listings } = useMarketplace();
+
+  const [marketIndices, setMarketIndices] = useState([]);
+  const [sectorBreakdown, setSectorBreakdown] = useState([]);
+  const [portfolioHistory, setPortfolioHistory] = useState({ portfolio: [], benchmark: [] });
+
+  useEffect(() => {
+    api.get('/api/v1/dashboard/batch').then(r => {
+      setMarketIndices(r.data.market_indices || []);
+      setSectorBreakdown(r.data.sector_breakdown || []);
+      setPortfolioHistory(r.data.portfolio_history || { portfolio: [], benchmark: [] });
+    }).catch(() => {});
+  }, []);
 
   const getPrediction = (ticker) => predictions.find((p) => p.ticker === ticker);
 
@@ -69,17 +81,19 @@ export default function Dashboard() {
       <p className="lede">A snapshot of your holdings, active AI verdicts, and recent activity.</p>
 
       {/* Market indices strip */}
-      <div className="dash-indices">
-        {MOCK_MARKET_INDICES.map((idx) => (
-          <div key={idx.name} className="dash-idx">
-            <span className="dash-idx-name">{idx.name}</span>
-            <span className="dash-idx-val mono">{idx.value.toLocaleString()}</span>
-            <span className={`dash-idx-chg mono ${idx.change >= 0 ? 'up' : 'down'}`}>
-              {idx.change >= 0 ? '+' : ''}{idx.change.toFixed(2)}%
-            </span>
-          </div>
-        ))}
-      </div>
+      {marketIndices.length > 0 && (
+        <div className="dash-indices">
+          {marketIndices.map((idx) => (
+            <div key={idx.name} className="dash-idx">
+              <span className="dash-idx-name">{idx.name}</span>
+              <span className="dash-idx-val mono">{idx.value.toLocaleString()}</span>
+              <span className={`dash-idx-chg mono ${idx.change >= 0 ? 'up' : 'down'}`}>
+                {idx.change >= 0 ? '+' : ''}{idx.change.toFixed(2)}%
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Stat cards */}
       <div className="stat-grid">
@@ -89,14 +103,14 @@ export default function Dashboard() {
           <div className="s">{holdings.length} positions</div>
         </div>
         <div className="stat">
-          <div className="k">Today's P/L</div>
+          <div className="k">Today's Profit / Loss</div>
           <div className={`v mono ${todayPL >= 0 ? 'up' : 'down'}`}>
             {todayPL >= 0 ? '+' : ''}{fmtMoney(todayPL)}
           </div>
           <div className="s">{totalMV > 0 ? ((todayPL / totalMV) * 100).toFixed(2) : '0'}% today</div>
         </div>
         <div className="stat">
-          <div className="k">Unrealised P/L</div>
+          <div className="k">Unrealised Profit / Loss</div>
           <div className={`v mono ${unrealisedPL >= 0 ? 'up' : 'down'}`}>
             {unrealisedPL >= 0 ? '+' : ''}{fmtMoney(unrealisedPL)}
           </div>
@@ -115,37 +129,39 @@ export default function Dashboard() {
       </div>
 
       {/* Performance chart */}
-      <div className="card pad" style={{ marginBottom: 18 }}>
-        <div className="ctitle"><span className="dot" />Portfolio performance</div>
-        <div className="csub">Portfolio value vs S&P 500 benchmark</div>
-        <div className="chart-box" style={{ height: 260 }}>
-          <Line
-            data={{
-              labels: MOCK_PORTFOLIO_HISTORY.map(d => d.date),
-              datasets: [
-                {
-                  label: 'Portfolio', data: MOCK_PORTFOLIO_HISTORY.map(d => d.value),
-                  borderColor: '#d4a853', backgroundColor: 'rgba(212,168,83,.06)',
-                  borderWidth: 2, fill: true, tension: .35, pointRadius: 3, pointBackgroundColor: '#d4a853',
+      {portfolioHistory.portfolio?.length > 1 && (
+        <div className="card pad" style={{ marginBottom: 18 }}>
+          <div className="ctitle"><span className="dot" />Portfolio performance</div>
+          <div className="csub">Portfolio value vs S&P 500 benchmark</div>
+          <div className="chart-box" style={{ height: 260 }}>
+            <Line
+              data={{
+                labels: portfolioHistory.portfolio.map(d => d.date),
+                datasets: [
+                  {
+                    label: 'Portfolio', data: portfolioHistory.portfolio.map(d => d.value),
+                    borderColor: '#d4a853', backgroundColor: 'rgba(212,168,83,.06)',
+                    borderWidth: 2, fill: true, tension: .35, pointRadius: 3, pointBackgroundColor: '#d4a853',
+                  },
+                  {
+                    label: 'S&P 500', data: portfolioHistory.benchmark.map(d => d.value),
+                    borderColor: '#71717a', backgroundColor: 'transparent',
+                    borderWidth: 1.5, borderDash: [5, 4], tension: .35, pointRadius: 0,
+                  },
+                ],
+              }}
+              options={{
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { position: 'top', align: 'end', labels: { boxWidth: 12, color: '#a1a1aa', font: chartFont } } },
+                scales: {
+                  x: { grid: { color: GRID }, border: { display: false }, ticks: { color: '#71717a', font: chartFont } },
+                  y: { grid: { color: GRID }, border: { display: false }, ticks: { callback: v => '$' + (v / 1000).toFixed(0) + 'k', color: '#71717a', font: chartFont } },
                 },
-                {
-                  label: 'S&P 500', data: MOCK_BENCHMARK.map(d => d.value),
-                  borderColor: '#71717a', backgroundColor: 'transparent',
-                  borderWidth: 1.5, borderDash: [5, 4], tension: .35, pointRadius: 0,
-                },
-              ],
-            }}
-            options={{
-              responsive: true, maintainAspectRatio: false,
-              plugins: { legend: { position: 'top', align: 'end', labels: { boxWidth: 12, color: '#a1a1aa', font: chartFont } } },
-              scales: {
-                x: { grid: { color: GRID }, border: { display: false }, ticks: { color: '#71717a', font: chartFont } },
-                y: { grid: { color: GRID }, border: { display: false }, ticks: { callback: v => '$' + (v / 1000).toFixed(0) + 'k', color: '#71717a', font: chartFont } },
-              },
-            }}
-          />
+              }}
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="dash-cols">
         <div className="dash-main">
@@ -218,24 +234,26 @@ export default function Dashboard() {
 
         <div className="dash-side">
           {/* Sector breakdown */}
-          <div className="card pad">
-            <div className="ctitle"><span className="dot" />Sector breakdown</div>
-            <div className="csub">Exposure by industry</div>
-            <div className="dash-sectors">
-              {MOCK_SECTOR_BREAKDOWN.map((s) => (
-                <div key={s.sector} className="dash-sector-row">
-                  <div className="dash-sector-head">
-                    <span className="dash-sector-name">{s.sector}</span>
-                    <span className="dash-sector-pct mono">{s.weight.toFixed(1)}%</span>
+          {sectorBreakdown.length > 0 && (
+            <div className="card pad">
+              <div className="ctitle"><span className="dot" />Sector breakdown</div>
+              <div className="csub">Exposure by industry</div>
+              <div className="dash-sectors">
+                {sectorBreakdown.map((s) => (
+                  <div key={s.sector} className="dash-sector-row">
+                    <div className="dash-sector-head">
+                      <span className="dash-sector-name">{s.sector}</span>
+                      <span className="dash-sector-pct mono">{s.weight.toFixed(1)}%</span>
+                    </div>
+                    <div className="dash-sector-bar">
+                      <div className="dash-sector-fill" style={{ width: `${s.weight}%` }} />
+                    </div>
+                    <span className="dash-sector-val mono">{fmtMoney(s.value)}</span>
                   </div>
-                  <div className="dash-sector-bar">
-                    <div className="dash-sector-fill" style={{ width: `${s.weight}%` }} />
-                  </div>
-                  <span className="dash-sector-val mono">{fmtMoney(s.value)}</span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Featured strategy */}
           {topListing && (

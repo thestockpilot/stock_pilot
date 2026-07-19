@@ -1,42 +1,51 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../api/client';
-import { MOCK_HOLDINGS } from '../data/mock';
+import { getCached, setCache, clearCache } from '../api/cache';
+
+const KEY = 'portfolio';
 
 export function usePortfolio() {
-  const [holdings, setHoldings] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [holdings, setHoldings] = useState(() => getCached(KEY) || []);
+  const [loading, setLoading] = useState(!getCached(KEY));
   const [error, setError] = useState(null);
 
   const fetchHoldings = useCallback(async () => {
-    setLoading(true);
     setError(null);
     try {
       const { data } = await api.get('/api/v1/portfolio');
       const items = Array.isArray(data) ? data : data.items || [];
-      setHoldings(items.length > 0 ? items : MOCK_HOLDINGS);
+      setHoldings(items);
+      setCache(KEY, items);
     } catch (err) {
-      setHoldings(MOCK_HOLDINGS);
+      setError(err);
+      setHoldings([]);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { fetchHoldings(); }, [fetchHoldings]);
+  useEffect(() => {
+    if (getCached(KEY)) { setLoading(false); return; }
+    fetchHoldings();
+  }, [fetchHoldings]);
 
   const addHolding = async (holding) => {
     const { data } = await api.post('/api/v1/portfolio', holding);
+    clearCache(KEY);
     await fetchHoldings();
     return data;
   };
 
   const updateHolding = async (id, updates) => {
     const { data } = await api.put(`/api/v1/portfolio/${id}`, updates);
+    clearCache(KEY);
     await fetchHoldings();
     return data;
   };
 
   const deleteHolding = async (id) => {
     await api.delete(`/api/v1/portfolio/${id}`);
+    clearCache(KEY);
     await fetchHoldings();
   };
 

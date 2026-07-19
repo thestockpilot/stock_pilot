@@ -1,20 +1,22 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../api/client';
+import { getCached, setCache } from '../api/cache';
 
 export function useMarketStatus() {
-  const [status, setStatus] = useState({ is_open: false, status: 'Loading...', next_event: '' });
+  const [status, setStatus] = useState(() => getCached('market-status', 60000) || { is_open: false, status: 'Loading...', next_event: '' });
 
   const fetch = useCallback(async () => {
     try {
       const { data } = await api.get('/api/v1/live/market-status');
       setStatus(data);
+      setCache('market-status', data);
     } catch {
       setStatus({ is_open: false, status: 'Offline', next_event: '' });
     }
   }, []);
 
   useEffect(() => {
-    fetch();
+    if (!getCached('market-status', 60000)) fetch();
     const id = setInterval(fetch, 60000);
     return () => clearInterval(id);
   }, [fetch]);
@@ -224,6 +226,37 @@ export function useBullBear(ticker, pollMs = 0) {
   }, [fetch, pollMs]);
 
   return { data, loading, refetch: fetch };
+}
+
+export function useSentiment(ticker, pollMs = 0) {
+  const [sentiment, setSentiment] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const intervalRef = useRef(null);
+
+  const fetch = useCallback(async (signal) => {
+    if (!ticker) return;
+    setLoading(true);
+    try {
+      const { data } = await api.get(`/api/v1/sentiment/${ticker}`, {
+        ...(signal ? { signal } : {}),
+      });
+      setSentiment(data);
+    } catch (e) {
+      if (!_isAbort(e)) setSentiment(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [ticker]);
+
+  useEffect(() => {
+    const c = new AbortController();
+    fetch(c.signal);
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    if (pollMs > 0) intervalRef.current = setInterval(() => fetch(), pollMs);
+    return () => { c.abort(); if (intervalRef.current) clearInterval(intervalRef.current); };
+  }, [fetch, pollMs]);
+
+  return { sentiment, loading, refetch: fetch };
 }
 
 export function useFundamentals(ticker, pollMs = 0) {

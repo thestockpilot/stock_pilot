@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import api from '../api/client';
+import { clearCache } from '../api/cache';
 
 const AuthContext = createContext(null);
 
@@ -9,11 +10,6 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   const fetchUser = useCallback(async () => {
-    const stored = localStorage.getItem('sp_access_token');
-    if (stored === 'demo_token_offline') {
-      setUser({ id: 0, full_name: 'Demo Trader', email: 'demo@stockpilot.io' });
-      return;
-    }
     try {
       const { data } = await api.get('/api/v1/users/me');
       setUser(data);
@@ -36,29 +32,17 @@ export function AuthProvider({ children }) {
   }, [token, fetchUser]);
 
   const login = async (email, password) => {
-    try {
-      const { data } = await api.post('/api/v1/auth/login', { email, password });
-      localStorage.setItem('sp_access_token', data.access_token);
-      if (data.refresh_token) {
-        localStorage.setItem('sp_refresh_token', data.refresh_token);
-      }
-      setToken(data.access_token);
-      setUser(data.user || null);
-      if (!data.user) {
-        await fetchUser();
-      }
-      return data;
-    } catch (err) {
-      if (email === 'demo@stockpilot.io' && password === 'demo1234') {
-        const demoToken = 'demo_token_offline';
-        const demoUser = { id: 0, full_name: 'Demo Trader', email: 'demo@stockpilot.io' };
-        localStorage.setItem('sp_access_token', demoToken);
-        setToken(demoToken);
-        setUser(demoUser);
-        return { access_token: demoToken, user: demoUser };
-      }
-      throw err;
+    const { data } = await api.post('/api/v1/auth/login', { email, password });
+    localStorage.setItem('sp_access_token', data.access_token);
+    if (data.refresh_token) {
+      localStorage.setItem('sp_refresh_token', data.refresh_token);
     }
+    setToken(data.access_token);
+    setUser(data.user || null);
+    if (!data.user) {
+      await fetchUser();
+    }
+    return data;
   };
 
   const register = async (full_name, email, password) => {
@@ -80,6 +64,7 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('sp_refresh_token');
     setToken(null);
     setUser(null);
+    clearCache();
   };
 
   const updateUser = (updatedUser) => {

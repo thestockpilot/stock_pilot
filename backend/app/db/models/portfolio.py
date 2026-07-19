@@ -13,6 +13,7 @@ class Holding(Base):
     ticker     : Mapped[str]       = mapped_column(String(10), nullable=False)
     quantity   : Mapped[float]     = mapped_column(Numeric(18, 4), nullable=False)
     avg_cost   : Mapped[float]     = mapped_column(Numeric(18, 4), nullable=False)
+    current_price : Mapped[float] = mapped_column(Numeric(18, 4), nullable=True)
     opened_at  : Mapped[datetime]  = mapped_column(DateTime(timezone=True), server_default=func.now())
     closed_at  : Mapped[datetime]  = mapped_column(DateTime(timezone=True), nullable=True)
 

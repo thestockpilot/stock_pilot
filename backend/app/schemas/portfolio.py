@@ -20,6 +20,8 @@ class HoldingOut(BaseModel):
     ticker: str
     quantity: float
     avg_cost: float
+    current_price: float | None = None
+    name: str | None = None
     opened_at: datetime
     closed_at: datetime | None = None
 

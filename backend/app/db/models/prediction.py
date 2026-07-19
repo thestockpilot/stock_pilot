@@ -20,5 +20,6 @@ class Prediction(Base):
     confidence       : Mapped[float]      = mapped_column(Numeric(5, 2), nullable=False)
     probability_up   : Mapped[float]      = mapped_column(Numeric(5, 2), nullable=False)
     probability_down : Mapped[float]      = mapped_column(Numeric(5, 2), nullable=False)
+    composite_score  : Mapped[int]        = mapped_column(Integer, nullable=True)
     model_version    : Mapped[str]        = mapped_column(String(50), nullable=False, default="xgboost_v1")
     created_at       : Mapped[datetime]   = mapped_column(DateTime(timezone=True), server_default=func.now())

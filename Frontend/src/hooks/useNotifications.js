@@ -1,29 +1,35 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../api/client';
-import { MOCK_NOTIFICATIONS } from '../data/mock';
+import { getCached, setCache } from '../api/cache';
+
+const KEY = 'notifications';
 
 export function useNotifications() {
-  const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const cached = getCached(KEY, 30000);
+  const [notifications, setNotifications] = useState(() => cached?.items || []);
+  const [unreadCount, setUnreadCount] = useState(() => cached?.unread || 0);
+  const [loading, setLoading] = useState(!cached);
 
   const fetchNotifications = useCallback(async () => {
-    setLoading(true);
     try {
       const { data } = await api.get('/api/v1/notifications');
       const items = Array.isArray(data) ? data : data.items || [];
-      const result = items.length > 0 ? items : MOCK_NOTIFICATIONS;
-      setNotifications(result);
-      setUnreadCount(result.filter((n) => !n.is_read).length);
+      const unread = items.filter((n) => !n.is_read).length;
+      setNotifications(items);
+      setUnreadCount(unread);
+      setCache(KEY, { items, unread });
     } catch {
-      setNotifications(MOCK_NOTIFICATIONS);
-      setUnreadCount(MOCK_NOTIFICATIONS.filter((n) => !n.is_read).length);
+      setNotifications([]);
+      setUnreadCount(0);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { fetchNotifications(); }, [fetchNotifications]);
+  useEffect(() => {
+    if (cached) { setLoading(false); return; }
+    fetchNotifications();
+  }, [fetchNotifications]);
 
   const markAsRead = async (id) => {
     try {

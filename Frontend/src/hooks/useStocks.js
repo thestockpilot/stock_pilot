@@ -1,17 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../api/client';
+import { getCached, setCache } from '../api/cache';
+
+const KEY = 'stocks';
 
 export function useStocks() {
-  const [stocks, setStocks] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [stocks, setStocks] = useState(() => getCached(KEY, 120000) || []);
+  const [loading, setLoading] = useState(!getCached(KEY, 120000));
   const [error, setError] = useState(null);
 
   const fetchStocks = useCallback(async () => {
-    setLoading(true);
     setError(null);
     try {
       const { data } = await api.get('/api/v1/stocks');
-      setStocks(Array.isArray(data) ? data : data.items || []);
+      const items = Array.isArray(data) ? data : data.items || [];
+      setStocks(items);
+      setCache(KEY, items);
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to load stocks');
     } finally {
@@ -19,7 +23,10 @@ export function useStocks() {
     }
   }, []);
 
-  useEffect(() => { fetchStocks(); }, [fetchStocks]);
+  useEffect(() => {
+    if (getCached(KEY, 120000)) { setLoading(false); return; }
+    fetchStocks();
+  }, [fetchStocks]);
 
   return { stocks, loading, error, refetch: fetchStocks };
 }
@@ -31,11 +38,15 @@ export function useStockDetail(ticker) {
 
   const fetchStock = useCallback(async () => {
     if (!ticker) return;
+    const cacheKey = `stock:${ticker}`;
+    const cached = getCached(cacheKey, 60000);
+    if (cached) { setStock(cached); return; }
     setLoading(true);
     setError(null);
     try {
       const { data } = await api.get(`/api/v1/stocks/${ticker}`);
       setStock(data);
+      setCache(cacheKey, data);
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to load stock');
     } finally {
@@ -54,12 +65,15 @@ export function usePriceHistory(ticker, days = 60) {
 
   const fetchHistory = useCallback(async () => {
     if (!ticker) return;
+    const cacheKey = `history:${ticker}:${days}`;
+    const cached = getCached(cacheKey, 60000);
+    if (cached) { setHistory(cached); return; }
     setLoading(true);
     try {
-      const { data } = await api.get(`/api/v1/stocks/${ticker}/history`, {
-        params: { days },
-      });
-      setHistory(Array.isArray(data) ? data : data.items || []);
+      const { data } = await api.get(`/api/v1/stocks/${ticker}/history`, { params: { days } });
+      const items = Array.isArray(data) ? data : data.items || [];
+      setHistory(items);
+      setCache(cacheKey, items);
     } catch {
       setHistory([]);
     } finally {
