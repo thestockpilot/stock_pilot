@@ -6,9 +6,18 @@ from app.db.session import get_db
 from app.db.models.marketplace import MarketplaceListing
 from app.db.models.strategy import Strategy
 from app.db.models.user import User
+from app.db.models.settings import get_settings, thresholds_dict
 from app.core.dependencies import get_current_user
 
 router = APIRouter(prefix="/marketplace", tags=["marketplace"])
+
+
+@router.get("/thresholds")
+async def marketplace_thresholds(db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+    """Current backtest approval thresholds, readable by any signed-in user so the
+    marketplace and publish dialog stay in sync with what admins have configured."""
+    settings = await get_settings(db)
+    return thresholds_dict(settings)
 
 
 @router.get("")

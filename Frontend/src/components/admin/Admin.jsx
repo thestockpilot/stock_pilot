@@ -25,6 +25,7 @@ export default function Admin() {
   const [allListings, setAllListings] = useState([]);
   const [allStrategies, setAllStrategies] = useState([]);
   const [users, setUsers] = useState([]);
+  const [thresholds, setThresholds] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
   const [confirmAction, setConfirmAction] = useState(null);
@@ -32,13 +33,14 @@ export default function Admin() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [statsRes, revenueRes, pendingRes, listingsRes, strategiesRes, usersRes] = await Promise.all([
+      const [statsRes, revenueRes, pendingRes, listingsRes, strategiesRes, usersRes, thresholdsRes] = await Promise.all([
         api.get('/api/v1/admin/stats'),
         api.get('/api/v1/admin/revenue'),
         api.get('/api/v1/admin/pending'),
         api.get('/api/v1/admin/listings'),
         api.get('/api/v1/admin/strategies'),
         api.get('/api/v1/admin/users'),
+        api.get('/api/v1/admin/thresholds'),
       ]);
       setStats(statsRes.data);
       setRevenue(revenueRes.data);
@@ -46,6 +48,7 @@ export default function Admin() {
       setAllListings(listingsRes.data);
       setAllStrategies(strategiesRes.data);
       setUsers(usersRes.data);
+      setThresholds(thresholdsRes.data);
     } catch (err) {
       console.error('Admin fetch error:', err);
     }
@@ -138,6 +141,7 @@ export default function Admin() {
           { key: 'listings', label: 'Listings' },
           { key: 'strategies', label: 'Strategies' },
           { key: 'users', label: 'Users' },
+          { key: 'thresholds', label: 'Thresholds' },
         ].map((t) => (
           <button
             key={t.key}
@@ -430,6 +434,11 @@ export default function Admin() {
         </div>
       )}
 
+      {/* Thresholds Tab */}
+      {tab === 'thresholds' && thresholds && (
+        <ThresholdsEditor initial={thresholds} onSaved={fetchData} />
+      )}
+
       {/* Confirm dialog */}
       {confirmAction && (
         <div className="modal-overlay" onClick={() => setConfirmAction(null)}>
@@ -445,6 +454,94 @@ export default function Admin() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+
+const THRESHOLD_FIELDS = [
+  { key: 'min_trades', label: 'Minimum trades', hint: 'Total closed trades in the backtest', unit: '', op: '≥', step: 1, toDisplay: (v) => v, fromDisplay: (v) => parseInt(v) || 0 },
+  { key: 'min_winrate', label: 'Minimum win rate', hint: 'Share of winning trades', unit: '%', op: '≥', step: 1, toDisplay: (v) => +(v * 100).toFixed(1), fromDisplay: (v) => (parseFloat(v) || 0) / 100 },
+  { key: 'min_sharpe', label: 'Minimum Sharpe ratio', hint: 'Risk-adjusted return', unit: '', op: '≥', step: 0.1, toDisplay: (v) => v, fromDisplay: (v) => parseFloat(v) || 0 },
+  { key: 'max_drawdown', label: 'Maximum drawdown', hint: 'Largest peak-to-trough loss (lower is stricter)', unit: '%', op: '≤', step: 1, toDisplay: (v) => +(v * 100).toFixed(1), fromDisplay: (v) => (parseFloat(v) || 0) / 100 },
+  { key: 'min_profit_factor', label: 'Minimum profit factor', hint: 'Gross profit ÷ gross loss', unit: '', op: '≥', step: 0.1, toDisplay: (v) => v, fromDisplay: (v) => parseFloat(v) || 0 },
+];
+
+function ThresholdsEditor({ initial, onSaved }) {
+  const [form, setForm] = useState(() => {
+    const f = {};
+    THRESHOLD_FIELDS.forEach((fl) => { f[fl.key] = fl.toDisplay(initial[fl.key]); });
+    return f;
+  });
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState(null);
+
+  const set = (key, val) => { setForm((f) => ({ ...f, [key]: val })); setMsg(null); };
+
+  const save = async () => {
+    setSaving(true);
+    setMsg(null);
+    try {
+      const payload = {};
+      THRESHOLD_FIELDS.forEach((fl) => { payload[fl.key] = fl.fromDisplay(form[fl.key]); });
+      await api.put('/api/v1/admin/thresholds', payload);
+      setMsg({ type: 'ok', text: 'Thresholds updated. New submissions are validated against these values.' });
+      if (onSaved) await onSaved();
+    } catch (err) {
+      setMsg({ type: 'err', text: err.response?.data?.detail || 'Failed to update thresholds' });
+    }
+    setSaving(false);
+  };
+
+  const resetDefaults = () => {
+    setForm({ min_trades: 100, min_winrate: 65, min_sharpe: 1.0, max_drawdown: 15, min_profit_factor: 1.5 });
+    setMsg(null);
+  };
+
+  return (
+    <div style={{ marginTop: 24, maxWidth: 640 }}>
+      <div className="card pad">
+        <div className="ctitle"><span className="dot" />Marketplace approval thresholds</div>
+        <div className="csub">A strategy can only be submitted for review if its backtest meets every value below. Changes apply immediately to new submissions.</div>
+
+        <div className="thresh-editor">
+          {THRESHOLD_FIELDS.map((fl) => (
+            <div key={fl.key} className="thresh-editor-row">
+              <div className="thresh-editor-label">
+                <span className="tel-op mono">{fl.op}</span>
+                <div>
+                  <div className="tel-name">{fl.label}</div>
+                  <div className="tel-hint">{fl.hint}</div>
+                </div>
+              </div>
+              <div className="thresh-editor-input">
+                <input
+                  type="number" step={fl.step} value={form[fl.key]}
+                  onChange={(e) => set(fl.key, e.target.value)}
+                  className="publish-input"
+                />
+                {fl.unit && <span className="tel-unit">{fl.unit}</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {msg && (
+          <div style={{
+            marginTop: 16, padding: '9px 13px', borderRadius: 8, fontSize: 13,
+            background: msg.type === 'ok' ? 'rgba(34,197,94,.1)' : 'rgba(239,68,68,.1)',
+            border: `1px solid ${msg.type === 'ok' ? 'rgba(34,197,94,.25)' : 'rgba(239,68,68,.25)'}`,
+            color: msg.type === 'ok' ? 'var(--bull)' : 'var(--bear)',
+          }}>
+            {msg.text}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+          <button className="btn" onClick={resetDefaults} disabled={saving}>Reset to defaults</button>
+          <button className="btn gold" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save thresholds'}</button>
+        </div>
+      </div>
     </div>
   );
 }

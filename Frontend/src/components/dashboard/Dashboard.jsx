@@ -16,6 +16,17 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarEleme
 const GRID = '#2e2e33';
 const chartFont = { family: "'IBM Plex Mono', monospace", size: 10 };
 
+const svg = (paths) => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{paths}</svg>
+);
+const ICONS = {
+  wallet: svg(<><path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><path d="M16 12h.01" /><path d="M3 9h18" /></>),
+  activity: svg(<path d="M3 12h4l3 8 4-16 3 8h4" />),
+  trending: svg(<><path d="M3 17l6-6 4 4 8-8" /><path d="M17 7h4v4" /></>),
+  layers: svg(<><path d="M12 3l9 5-9 5-9-5 9-5z" /><path d="M3 13l9 5 9-5" /></>),
+  spark: svg(<><path d="M12 3l1.6 5.4L19 10l-5.4 1.6L12 17l-1.6-5.4L5 10l5.4-1.6L12 3z" /></>),
+};
+
 function fmtMoney(n) {
   const v = Number(n) || 0;
   return (v < 0 ? '-' : '') + '$' + Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -97,32 +108,53 @@ export default function Dashboard() {
 
       {/* Stat cards */}
       <div className="stat-grid">
-        <div className="stat">
-          <div className="k">Total value</div>
+        <div className="stat stat-hero" style={{ '--i': 0 }}>
+          <div className="stat-top">
+            <div className="k">Total value</div>
+            <span className="stat-ico">{ICONS.wallet}</span>
+          </div>
           <div className="v mono">{fmtMoney(totalMV)}</div>
           <div className="s">{holdings.length} positions</div>
         </div>
-        <div className="stat">
-          <div className="k">Today's Profit / Loss</div>
+        <div className="stat" style={{ '--i': 1 }}>
+          <div className="stat-top">
+            <div className="k">Today's Profit / Loss</div>
+            <span className="stat-ico">{ICONS.activity}</span>
+          </div>
           <div className={`v mono ${todayPL >= 0 ? 'up' : 'down'}`}>
             {todayPL >= 0 ? '+' : ''}{fmtMoney(todayPL)}
           </div>
-          <div className="s">{totalMV > 0 ? ((todayPL / totalMV) * 100).toFixed(2) : '0'}% today</div>
+          <div className="s">
+            <span className={`trend ${todayPL >= 0 ? 'up' : 'down'}`}>{todayPL >= 0 ? '▲' : '▼'}</span>
+            {totalMV > 0 ? Math.abs((todayPL / totalMV) * 100).toFixed(2) : '0'}% today
+          </div>
         </div>
-        <div className="stat">
-          <div className="k">Unrealised Profit / Loss</div>
+        <div className="stat" style={{ '--i': 2 }}>
+          <div className="stat-top">
+            <div className="k">Unrealised Profit / Loss</div>
+            <span className="stat-ico">{ICONS.trending}</span>
+          </div>
           <div className={`v mono ${unrealisedPL >= 0 ? 'up' : 'down'}`}>
             {unrealisedPL >= 0 ? '+' : ''}{fmtMoney(unrealisedPL)}
           </div>
-          <div className="s">{totalCost > 0 ? ((unrealisedPL / totalCost) * 100).toFixed(1) : '0'}% on cost</div>
+          <div className="s">
+            <span className={`trend ${unrealisedPL >= 0 ? 'up' : 'down'}`}>{unrealisedPL >= 0 ? '▲' : '▼'}</span>
+            {totalCost > 0 ? Math.abs((unrealisedPL / totalCost) * 100).toFixed(1) : '0'}% on cost
+          </div>
         </div>
-        <div className="stat">
-          <div className="k">Open positions</div>
+        <div className="stat" style={{ '--i': 3 }}>
+          <div className="stat-top">
+            <div className="k">Open positions</div>
+            <span className="stat-ico">{ICONS.layers}</span>
+          </div>
           <div className="v mono">{holdings.length}</div>
           <div className="s">{watchlist.length} on watchlist</div>
         </div>
-        <div className="stat">
-          <div className="k">AI says BUY</div>
+        <div className="stat" style={{ '--i': 4 }}>
+          <div className="stat-top">
+            <div className="k">AI says BUY</div>
+            <span className="stat-ico">{ICONS.spark}</span>
+          </div>
           <div className="v mono up">{buyCount}</div>
           <div className="s">of {holdings.length} holdings</div>
         </div>
@@ -209,7 +241,7 @@ export default function Dashboard() {
 
           {/* Allocation */}
           {holdings.length > 0 && (
-            <div className="card pad" style={{ marginTop: 18 }}>
+            <div className="card pad">
               <div className="ctitle"><span className="dot" />Allocation</div>
               <div className="csub">By market value</div>
               <div className="chart-box" style={{ height: 210 }}>
@@ -257,7 +289,7 @@ export default function Dashboard() {
 
           {/* Featured strategy */}
           {topListing && (
-            <div className="card pad" style={{ marginTop: 18 }}>
+            <div className="card pad">
               <div className="ctitle"><span className="dot" />Featured strategy</div>
               <div className="csub">Top-rated marketplace strategy</div>
               <div className="pick-card">
@@ -278,7 +310,7 @@ export default function Dashboard() {
           )}
 
           {/* Recent activity */}
-          <div className="card pad" style={{ marginTop: 18 }}>
+          <div className="card pad">
             <div className="ctitle"><span className="dot" />Recent activity</div>
             <div className="csub">Latest journal entries</div>
             {recentTrades.length === 0 ? (
