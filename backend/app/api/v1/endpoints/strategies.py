@@ -5,9 +5,10 @@ from sqlalchemy import select
 from app.db.session import get_db
 from app.db.models.strategy import Strategy
 from app.db.models.marketplace import MarketplaceListing, ListingStatus
-from app.db.models.user import User, UserRole
+from app.db.models.user import User
+from app.db.models.settings import get_settings
 from app.schemas.strategy import StrategyCreate, StrategyUpdate, StrategyOut
-from app.core.dependencies import get_current_user, require_role
+from app.core.dependencies import get_current_user
 
 router = APIRouter(prefix="/strategies", tags=["strategies"])
 
@@ -75,8 +76,11 @@ async def request_publish(
     backtest_profit_factor: float = Body(default=0.0, embed=True),
     backtest_return: float = Body(default=0.0, embed=True),
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(require_role(UserRole.analyst, UserRole.admin)),
+    user: User = Depends(get_current_user),
 ):
+    # Any authenticated user may request that their own strategy be published.
+    # The submission is only accepted if the backtest thresholds below are met,
+    # and it still requires admin approval before it goes live on the marketplace.
     result = await db.execute(
         select(Strategy).where(Strategy.id == strategy_id, Strategy.owner_id == user.id)
     )
@@ -84,17 +88,24 @@ async def request_publish(
     if strategy is None:
         raise HTTPException(status_code=404, detail="Strategy not found")
 
+    thresholds = await get_settings(db)
+    min_trades = thresholds.min_trades
+    min_winrate = float(thresholds.min_winrate)
+    min_sharpe = float(thresholds.min_sharpe)
+    max_drawdown = float(thresholds.max_drawdown)
+    min_profit_factor = float(thresholds.min_profit_factor)
+
     failures = []
-    if backtest_trades < 100:
-        failures.append(f"Min trades: {backtest_trades}/100")
-    if backtest_winrate < 0.65:
-        failures.append(f"Win rate: {backtest_winrate*100:.0f}%/65%")
-    if backtest_sharpe < 1.0:
-        failures.append(f"Sharpe: {backtest_sharpe:.2f}/1.0")
-    if backtest_max_drawdown > 0.15:
-        failures.append(f"Max drawdown: {backtest_max_drawdown*100:.0f}%/15%")
-    if backtest_profit_factor < 1.5:
-        failures.append(f"Profit factor: {backtest_profit_factor:.2f}/1.5")
+    if backtest_trades < min_trades:
+        failures.append(f"Min trades: {backtest_trades}/{min_trades}")
+    if backtest_winrate < min_winrate:
+        failures.append(f"Win rate: {backtest_winrate*100:.0f}%/{min_winrate*100:.0f}%")
+    if backtest_sharpe < min_sharpe:
+        failures.append(f"Sharpe: {backtest_sharpe:.2f}/{min_sharpe:.1f}")
+    if backtest_max_drawdown > max_drawdown:
+        failures.append(f"Max drawdown: {backtest_max_drawdown*100:.0f}%/{max_drawdown*100:.0f}%")
+    if backtest_profit_factor < min_profit_factor:
+        failures.append(f"Profit factor: {backtest_profit_factor:.2f}/{min_profit_factor:.1f}")
     if failures:
         raise HTTPException(status_code=400, detail="Backtest thresholds not met: " + "; ".join(failures))
 

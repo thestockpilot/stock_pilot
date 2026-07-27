@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMarketplace } from '../../hooks/useMarketplace';
-import { useAuth } from '../../context/AuthContext';
 import api from '../../api/client';
 import LoadingSpinner from '../ui/LoadingSpinner';
 import EmptyState from '../ui/EmptyState';
@@ -15,28 +14,32 @@ const SORT_OPTIONS = [
   { value: 'newest', label: 'Newest' },
 ];
 
-const THRESHOLDS = [
-  { key: 'trades', op: '≥', val: '100', label: 'Min. trades', icon: (
+const DEFAULT_THRESHOLDS = {
+  min_trades: 100, min_winrate: 0.65, min_sharpe: 1.0, max_drawdown: 0.15, min_profit_factor: 1.5,
+};
+
+const THRESHOLD_META = [
+  { key: 'trades', op: '≥', label: 'Min. trades', fmt: (t) => `${t.min_trades}`, icon: (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 3v18h18"/><path d="M7 16l4-8 4 4 6-6"/>
     </svg>
   )},
-  { key: 'winrate', op: '≥', val: '65%', label: 'Win rate', icon: (
+  { key: 'winrate', op: '≥', label: 'Win rate', fmt: (t) => `${(t.min_winrate * 100).toFixed(0)}%`, icon: (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>
     </svg>
   )},
-  { key: 'sharpe', op: '≥', val: '1.0', label: 'Sharpe ratio', icon: (
+  { key: 'sharpe', op: '≥', label: 'Sharpe ratio', fmt: (t) => t.min_sharpe.toFixed(1), icon: (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
     </svg>
   )},
-  { key: 'drawdown', op: '≤', val: '15%', label: 'Max drawdown', icon: (
+  { key: 'drawdown', op: '≤', label: 'Max drawdown', fmt: (t) => `${(t.max_drawdown * 100).toFixed(0)}%`, icon: (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 2v20M2 12h20"/><path d="M2 7h5M17 7h5M2 17h5M17 17h5"/>
     </svg>
   )},
-  { key: 'profit', op: '≥', val: '1.5', label: 'Profit factor', icon: (
+  { key: 'profit', op: '≥', label: 'Profit factor', fmt: (t) => t.min_profit_factor.toFixed(1), icon: (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
     </svg>
@@ -45,14 +48,18 @@ const THRESHOLDS = [
 
 export default function Marketplace() {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { listings, loading, refetch } = useMarketplace();
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState('rating');
   const [filterStatus, setFilterStatus] = useState('all');
   const [showPublish, setShowPublish] = useState(false);
+  const [thresholds, setThresholds] = useState(DEFAULT_THRESHOLDS);
 
-  const isAnalyst = user?.role === 'analyst' || user?.role === 'admin';
+  useEffect(() => {
+    api.get('/api/v1/marketplace/thresholds')
+      .then((r) => setThresholds(r.data))
+      .catch(() => {});
+  }, []);
 
   const filtered = useMemo(() => {
     let items = [...listings];
@@ -85,10 +92,10 @@ export default function Marketplace() {
       <p className="lede">Verified factor weight configurations published by analysts. Every strategy must pass an objective backtest against the thresholds below before it can be listed.</p>
 
       <div className="thresh-grid">
-        {THRESHOLDS.map((t, i) => (
+        {THRESHOLD_META.map((t, i) => (
           <div key={i} className="thresh-card">
             <div className="thresh-icon">{t.icon}</div>
-            <div className="thresh-val">{t.op} {t.val}</div>
+            <div className="thresh-val">{t.op} {t.fmt(thresholds)}</div>
             <div className="thresh-label">{t.label}</div>
           </div>
         ))}
@@ -189,36 +196,26 @@ export default function Marketplace() {
         </div>
       )}
 
-      {/* Publish CTA for analysts */}
-      <div className="sec-label">For analysts</div>
-      {isAnalyst ? (
-        <div className="card pad creator-cta">
-          <div>
-            <div className="ctitle"><span className="dot" />Publish a strategy</div>
-            <div className="csub" style={{ marginBottom: 0 }}>Submit your strategy for review. It must pass all backtest thresholds before it can be listed on the marketplace.</div>
-          </div>
-          <button className="btn gold" onClick={() => setShowPublish(true)}>Publish Strategy</button>
+      {/* Publish CTA — open to every user */}
+      <div className="sec-label">Publish your strategy</div>
+      <div className="card pad creator-cta">
+        <div>
+          <div className="ctitle"><span className="dot" />Request to publish a strategy</div>
+          <div className="csub" style={{ marginBottom: 0 }}>Design and save a strategy in the Advisor, then request approval here. Run a backtest &mdash; if it clears every threshold above, an admin reviews and lists it, and you earn from every sale.</div>
         </div>
-      ) : (
-        <div className="card pad creator-cta">
-          <div>
-            <div className="ctitle"><span className="dot" />Publish a strategy</div>
-            <div className="csub" style={{ marginBottom: 0 }}>Analysts design factor weights, submit for automatic backtesting, and earn from every sale. Contact an admin to get analyst access.</div>
-          </div>
-          <button className="btn" disabled style={{ opacity: .5 }}>Analyst role required</button>
-        </div>
-      )}
+        <button className="btn gold" onClick={() => setShowPublish(true)}>Request Publish</button>
+      </div>
 
       {/* Publish Dialog */}
       {showPublish && (
-        <PublishDialog onClose={() => setShowPublish(false)} onPublished={() => { setShowPublish(false); refetch(); }} />
+        <PublishDialog thresholds={thresholds} onClose={() => setShowPublish(false)} onPublished={() => { setShowPublish(false); refetch(); }} />
       )}
     </div>
   );
 }
 
 
-function PublishDialog({ onClose, onPublished }) {
+function PublishDialog({ onClose, onPublished, thresholds = DEFAULT_THRESHOLDS }) {
   const [strategies, setStrategies] = useState([]);
   const [selectedId, setSelectedId] = useState('');
   const [priceDollars, setPriceDollars] = useState('');
@@ -231,6 +228,10 @@ function PublishDialog({ onClose, onPublished }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [loadingStrats, setLoadingStrats] = useState(true);
+  const [ticker, setTicker] = useState('');
+  const [running, setRunning] = useState(false);
+  const [btError, setBtError] = useState(null);
+  const [ran, setRan] = useState(false);
 
   useEffect(() => {
     api.get('/api/v1/strategies').then(res => {
@@ -240,6 +241,34 @@ function PublishDialog({ onClose, onPublished }) {
     }).catch(() => {}).finally(() => setLoadingStrats(false));
   }, []);
 
+  const selectedStrategy = strategies.find(s => s.id === selectedId);
+
+  const runBacktest = async () => {
+    if (!selectedStrategy || !ticker.trim()) return;
+    setRunning(true);
+    setBtError(null);
+    try {
+      const w = selectedStrategy.weights || {};
+      const { data } = await api.get(`/api/v1/analysis/${ticker.trim().toUpperCase()}/backtest`, {
+        params: {
+          period: '1y', risk: 'Moderate', horizon: 'Medium',
+          w_sentiment: w.sentiment, w_momentum: w.momentum, w_valuation: w.valuation,
+          w_volatility: w.volatility, w_volume: w.volume, w_growth: w.growth,
+        },
+      });
+      setBacktestTrades(String(data.trades ?? ''));
+      setBacktestWinrate(data.win_rate != null ? (data.win_rate * 100).toFixed(1) : '');
+      setBacktestSharpe(data.sharpe != null ? data.sharpe.toFixed(2) : '');
+      setBacktestDrawdown(data.max_drawdown_pct != null ? data.max_drawdown_pct.toFixed(1) : '');
+      setBacktestProfitFactor(data.profit_factor != null ? data.profit_factor.toFixed(2) : '');
+      setBacktestReturn(data.total_return_pct != null ? data.total_return_pct.toFixed(1) : '');
+      setRan(true);
+    } catch (err) {
+      setBtError(err.response?.data?.detail || 'Backtest failed. Check the ticker symbol and try again.');
+    }
+    setRunning(false);
+  };
+
   const trades = parseInt(backtestTrades) || 0;
   const winrate = parseFloat(backtestWinrate) / 100 || 0;
   const sharpe = parseFloat(backtestSharpe) || 0;
@@ -248,11 +277,11 @@ function PublishDialog({ onClose, onPublished }) {
   const retPct = parseFloat(backtestReturn) / 100 || 0;
 
   const checks = [
-    { label: 'Trades', met: trades >= 100, val: `${trades}`, req: '100' },
-    { label: 'Win Rate', met: winrate >= 0.65, val: `${(winrate * 100).toFixed(0)}%`, req: '65%' },
-    { label: 'Sharpe', met: sharpe >= 1.0, val: sharpe.toFixed(2), req: '1.0' },
-    { label: 'Drawdown', met: drawdown <= 0.15 && drawdown > 0, val: `${(drawdown * 100).toFixed(0)}%`, req: '≤15%' },
-    { label: 'Profit Factor', met: profitFactor >= 1.5, val: profitFactor.toFixed(2), req: '1.5' },
+    { label: 'Trades', met: trades >= thresholds.min_trades, val: `${trades}`, req: `${thresholds.min_trades}` },
+    { label: 'Win Rate', met: winrate >= thresholds.min_winrate, val: `${(winrate * 100).toFixed(0)}%`, req: `${(thresholds.min_winrate * 100).toFixed(0)}%` },
+    { label: 'Sharpe', met: sharpe >= thresholds.min_sharpe, val: sharpe.toFixed(2), req: thresholds.min_sharpe.toFixed(1) },
+    { label: 'Drawdown', met: drawdown <= thresholds.max_drawdown && drawdown > 0, val: `${(drawdown * 100).toFixed(0)}%`, req: `≤${(thresholds.max_drawdown * 100).toFixed(0)}%` },
+    { label: 'Profit Factor', met: profitFactor >= thresholds.min_profit_factor, val: profitFactor.toFixed(2), req: thresholds.min_profit_factor.toFixed(1) },
   ];
   const allMet = checks.every(c => c.met);
 
@@ -301,13 +330,47 @@ function PublishDialog({ onClose, onPublished }) {
               </select>
             </div>
 
+            {selectedStrategy?.weights && (
+              <div className="publish-weights-preview">
+                {['sentiment', 'momentum', 'valuation', 'volatility', 'volume', 'growth'].map((k) => (
+                  selectedStrategy.weights[k] != null
+                    ? <span key={k} className="sw-chip">{k.charAt(0).toUpperCase() + k.slice(1)} {selectedStrategy.weights[k]}%</span>
+                    : null
+                ))}
+              </div>
+            )}
+
             <div className="publish-field">
               <label>Price (USD) — leave empty for free</label>
               <input type="number" min="0" step="0.01" value={priceDollars} onChange={(e) => setPriceDollars(e.target.value)} placeholder="0.00" className="publish-input" />
             </div>
 
             <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '.5px', color: 'var(--muted)', fontWeight: 500, marginTop: 20, marginBottom: 10 }}>
-              Backtest Results
+              Run Backtest
+            </div>
+            <div className="publish-bt-runner">
+              <input
+                className="publish-input"
+                value={ticker}
+                onChange={(e) => setTicker(e.target.value.toUpperCase())}
+                onKeyDown={(e) => { if (e.key === 'Enter') runBacktest(); }}
+                placeholder="Ticker to test (e.g. AAPL)"
+              />
+              <button className="btn gold" onClick={runBacktest} disabled={!ticker.trim() || running}>
+                {running ? 'Running…' : 'Run Backtest'}
+              </button>
+            </div>
+            <div className="publish-bt-hint">
+              Runs the real engine on this strategy's weights and auto-fills the results below. You can also enter values manually.
+            </div>
+            {btError && (
+              <div style={{ marginTop: 10, padding: '8px 12px', borderRadius: 6, background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.2)', color: 'var(--bear)', fontSize: 13 }}>
+                {btError}
+              </div>
+            )}
+
+            <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '.5px', color: 'var(--muted)', fontWeight: 500, marginTop: 20, marginBottom: 10 }}>
+              Backtest Results {ran && <span style={{ color: 'var(--bull)', textTransform: 'none', letterSpacing: 0 }}>· auto-filled for {ticker}</span>}
             </div>
             <div className="publish-bt-grid">
               <div className="publish-field">

@@ -13,6 +13,7 @@ from typing import Optional
 import numpy as np
 import yfinance as yf
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 
 from app.core.dependencies import get_current_user
@@ -41,6 +42,17 @@ class FactorAnalysisResponse(BaseModel):
     as_of: str
 
 
+class TradeRecord(BaseModel):
+    entry_date: str
+    entry_price: float
+    exit_date: Optional[str] = None
+    exit_price: Optional[float] = None
+    size: Optional[float] = None
+    pnl: float
+    return_pct: float
+    status: Optional[str] = None
+
+
 class BacktestMetrics(BaseModel):
     total_return_pct: float
     buy_hold_return_pct: float
@@ -52,6 +64,7 @@ class BacktestMetrics(BaseModel):
     trades: int
     equity_curve: list[float]
     dates: list[str]
+    trades_log: list[TradeRecord] = []
 
 
 class BullBearResponse(BaseModel):
@@ -338,16 +351,120 @@ def _compute_daily_composite(df, weights: dict) -> np.ndarray:
     return composite
 
 
-RISK_THRESHOLDS = {
-    "Conservative": {"buy": 51, "sell": 50, "trail_pct": 0.008},
-    "Moderate":     {"buy": 53, "sell": 47, "trail_pct": 0.018},
-    "Aggressive":   {"buy": 50, "sell": 42, "trail_pct": 0.040},
+def _run_vectorbt_backtest(df, weights: dict, buy_thresh: float, sell_thresh: float,
+                           sl_stop: float, tp_stop: float) -> dict:
+    """Event-driven backtest of the six-factor signal using vectorbt.
+
+    The six-factor composite drives the entry/exit signals; the trader's risk
+    tolerance and time horizon shape the entry conviction, the trailing stop-loss,
+    and the take-profit target. vectorbt handles fills, stops, trading costs, and
+    all performance analytics. Runs synchronously (CPU-bound) via run_in_threadpool.
+    """
+    import pandas as pd
+    import vectorbt as vbt
+
+    composite = _compute_daily_composite(df, weights)
+    close = df["Close"].astype(float)
+    idx = close.index
+    comp = pd.Series(composite, index=idx)
+
+    entries = comp >= buy_thresh   # go long when the composite is bullish
+    exits = comp <= sell_thresh    # exit when it turns bearish
+
+    portfolio = vbt.Portfolio.from_signals(
+        close, entries, exits,
+        sl_stop=sl_stop, sl_trail=True,               # trailing stop-loss
+        tp_stop=(tp_stop if tp_stop and tp_stop > 0 else np.nan),  # take-profit (re-enters after)
+        upon_opposite_entry="close",                  # allow re-entry once flat -> more trades
+        fees=0.001, slippage=0.0005,                  # realistic trading costs
+        init_cash=10_000, freq="1D",
+    )
+
+    total_ret = float(portfolio.total_return()) * 100
+    bh_total = float(close.iloc[-1] / close.iloc[0] - 1) * 100
+
+    n_trades = int(portfolio.trades.count())
+    if n_trades > 0:
+        win_rate = float(portfolio.trades.win_rate())
+        profit_factor = float(portfolio.trades.profit_factor())
+    else:
+        win_rate = 0.0
+        profit_factor = 0.0
+
+    # Guard against NaN / inf (e.g. all-winning runs give an infinite profit factor)
+    if not np.isfinite(win_rate):
+        win_rate = 0.0
+    if not np.isfinite(profit_factor):
+        profit_factor = 99.99
+    profit_factor = min(profit_factor, 99.99)
+
+    sharpe = float(portfolio.sharpe_ratio())
+    if not np.isfinite(sharpe):
+        sharpe = 0.0
+
+    max_dd = abs(float(portfolio.max_drawdown())) * 100
+    if not np.isfinite(max_dd):
+        max_dd = 0.0
+
+    # Equity curve normalised to start at 1.0, down-sampled to ~100 points
+    value = portfolio.value()
+    equity = (value / value.iloc[0]).to_numpy()
+    step = max(1, len(equity) // 100)
+    eq_sampled = equity[::step].tolist()
+    dates = [str(idx[i]) for i in range(0, len(equity), step)]
+
+    # Per-trade ledger — the auditable record of every trade the engine took
+    trades_log = []
+    records = portfolio.trades.records_readable
+    def _col(row, name):
+        return row[name] if name in records.columns else None
+    for _, row in records.iterrows():
+        exit_ts = _col(row, "Exit Timestamp")
+        exit_px = _col(row, "Avg Exit Price")
+        size = _col(row, "Size")
+        status = _col(row, "Status")
+        trades_log.append({
+            "entry_date": str(pd.Timestamp(row["Entry Timestamp"]).date()),
+            "entry_price": round(float(row["Avg Entry Price"]), 4),
+            "exit_date": str(pd.Timestamp(exit_ts).date()) if pd.notna(exit_ts) else None,
+            "exit_price": round(float(exit_px), 4) if exit_px is not None and pd.notna(exit_px) else None,
+            "size": round(float(size), 4) if size is not None and pd.notna(size) else None,
+            "pnl": round(float(row["PnL"]), 2),
+            "return_pct": round(float(row["Return"]) * 100, 2),
+            "status": str(status) if status is not None else None,
+        })
+
+    return {
+        "total_return_pct": round(total_ret, 2),
+        "buy_hold_return_pct": round(bh_total, 2),
+        "edge_vs_hold_pct": round(total_ret - bh_total, 2),
+        "win_rate": round(win_rate, 4),
+        "sharpe": round(sharpe, 3),
+        "max_drawdown_pct": round(max_dd, 2),
+        "profit_factor": round(profit_factor, 3),
+        "trades": max(n_trades, 1),
+        "equity_curve": eq_sampled,
+        "dates": dates,
+        "trades_log": trades_log,
+    }
+
+
+# Risk tolerance controls HOW a trade is taken: entry conviction (buy threshold) and
+# how wide the protective stop / take-profit are scaled (a higher appetite rides more
+# volatility per trade).
+RISK_CONFIG = {
+    "Conservative": {"buy": 55, "sl_mult": 0.7, "tp_mult": 0.8},
+    "Moderate":     {"buy": 52, "sl_mult": 1.0, "tp_mult": 1.0},
+    "Aggressive":   {"buy": 49, "sl_mult": 1.5, "tp_mult": 1.4},
 }
 
+# Time horizon controls HOW OFTEN trades happen: a short horizon takes profit quickly
+# with a tight band and re-enters often (many trades); a long horizon holds through
+# noise with a wide stop and no take-profit (few trades).
 HORIZON_CONFIG = {
-    "Short":  {"hold_min": 1, "hold_max": 5,   "cooldown": 0},
-    "Medium": {"hold_min": 2, "hold_max": 15,  "cooldown": 1},
-    "Long":   {"hold_min": 5, "hold_max": 40,  "cooldown": 2},
+    "Short":  {"band": 2,  "sl": 0.025, "tp": 0.025},  # scalp: tight band + TP -> many trades
+    "Medium": {"band": 5,  "sl": 0.050, "tp": 0.10},
+    "Long":   {"band": 11, "sl": 0.130, "tp": 0.0},    # tp 0 -> disabled (ride the trend)
 }
 
 
@@ -371,13 +488,15 @@ async def get_backtest(
         "valuation": w_valuation, "volatility": w_volatility,
         "volume": w_volume, "growth": w_growth,
     }
-    rt = RISK_THRESHOLDS.get(risk, RISK_THRESHOLDS["Moderate"])
+    rc = RISK_CONFIG.get(risk, RISK_CONFIG["Moderate"])
     hc = HORIZON_CONFIG.get(horizon, HORIZON_CONFIG["Medium"])
-    buy_thresh = rt["buy"]
-    sell_thresh = rt["sell"]
-    trail_pct = rt["trail_pct"]
-    hold_min = hc["hold_min"]
-    cooldown = hc["cooldown"]
+
+    # Risk sets entry conviction; horizon sets the exit band and how often we trade.
+    buy_thresh = rc["buy"]
+    sell_thresh = rc["buy"] - hc["band"]
+    # Horizon sets the base stop / take-profit; risk scales how wide they are.
+    sl_stop = hc["sl"] * rc["sl_mult"]
+    tp_stop = hc["tp"] * rc["tp_mult"]
 
     try:
         raw = _fetcher.fetch_historical(ticker, period=period)
@@ -386,83 +505,10 @@ async def get_backtest(
         if df.empty or len(df) < 60:
             raise HTTPException(status_code=400, detail="Insufficient data for backtest")
 
-        composite = _compute_daily_composite(df, weights)
-        close = df["Close"].values
-        daily_ret = np.diff(close) / close[:-1]
-
-        positions = np.zeros(len(composite), dtype=int)
-        pos = 0
-        hold_days = 0
-        cool = 0
-        entry_price = 0.0
-        peak_price = 0.0
-
-        for i in range(1, len(composite)):
-            if cool > 0:
-                cool -= 1
-                positions[i] = 0
-                continue
-
-            if pos == 1:
-                hold_days += 1
-                peak_price = max(peak_price, close[i])
-                trail_hit = close[i] < peak_price * (1 - trail_pct)
-                signal_exit = composite[i] <= sell_thresh and hold_days >= hold_min
-
-                if trail_hit or signal_exit:
-                    pos = 0
-                    cool = cooldown
-                    hold_days = 0
-                else:
-                    positions[i] = 1
-            else:
-                if composite[i] >= buy_thresh:
-                    pos = 1
-                    entry_price = close[i]
-                    peak_price = close[i]
-                    hold_days = 0
-                    positions[i] = 1
-
-        strat_ret = positions[:-1] * daily_ret
-        bh_ret = daily_ret
-
-        equity = np.cumprod(1 + strat_ret)
-        bh_equity = np.cumprod(1 + bh_ret)
-
-        active_days = strat_ret[positions[:-1] == 1]
-        wins = active_days[active_days > 0]
-        losses = active_days[active_days < 0]
-        n_trades = int(np.abs(np.diff(positions)).sum()) // 2
-        win_rate = len(wins) / max(1, len(wins) + len(losses))
-        total_ret = float(equity[-1] - 1) * 100
-        bh_total = float(bh_equity[-1] - 1) * 100
-
-        std = float(strat_ret.std())
-        sharpe = float(np.sqrt(252) * strat_ret.mean() / std) if std > 0 else 0
-
-        running_max = np.maximum.accumulate(equity)
-        max_dd = float((1 - equity / running_max).max()) * 100
-
-        gross_gain = float(wins.sum()) if len(wins) else 0
-        gross_loss = float(-losses.sum()) if len(losses) else 1e-9
-        pf = gross_gain / gross_loss
-
-        step = max(1, len(equity) // 100)
-        eq_sampled = equity[::step].tolist()
-        dates = [str(df.index[i + 1]) for i in range(0, len(equity), step)]
-
-        return BacktestMetrics(
-            total_return_pct=round(total_ret, 2),
-            buy_hold_return_pct=round(bh_total, 2),
-            edge_vs_hold_pct=round(total_ret - bh_total, 2),
-            win_rate=round(win_rate, 4),
-            sharpe=round(sharpe, 3),
-            max_drawdown_pct=round(max_dd, 2),
-            profit_factor=round(pf, 3),
-            trades=max(n_trades, 1),
-            equity_curve=eq_sampled,
-            dates=dates,
+        metrics = await run_in_threadpool(
+            _run_vectorbt_backtest, df, weights, buy_thresh, sell_thresh, sl_stop, tp_stop
         )
+        return BacktestMetrics(**metrics)
     except HTTPException:
         raise
     except Exception as exc:

@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
@@ -8,11 +8,53 @@ from app.db.session import get_db
 from app.db.models.user import User, UserRole
 from app.db.models.strategy import Strategy
 from app.db.models.marketplace import MarketplaceListing, ListingStatus
+from app.db.models.settings import get_settings, thresholds_dict
 from app.core.dependencies import require_role
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 require_admin = require_role(UserRole.admin)
+
+
+@router.get("/thresholds")
+async def get_thresholds(
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    settings = await get_settings(db)
+    return thresholds_dict(settings)
+
+
+@router.put("/thresholds")
+async def update_thresholds(
+    min_trades: int = Body(..., embed=True),
+    min_winrate: float = Body(..., embed=True),
+    min_sharpe: float = Body(..., embed=True),
+    max_drawdown: float = Body(..., embed=True),
+    min_profit_factor: float = Body(..., embed=True),
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    # Basic sanity bounds so a typo can't make the marketplace unusable.
+    if not (0 <= min_trades <= 100000):
+        raise HTTPException(status_code=400, detail="Min trades must be between 0 and 100000")
+    if not (0 <= min_winrate <= 1):
+        raise HTTPException(status_code=400, detail="Win rate must be a fraction between 0 and 1")
+    if not (0 <= min_sharpe <= 20):
+        raise HTTPException(status_code=400, detail="Sharpe must be between 0 and 20")
+    if not (0 < max_drawdown <= 1):
+        raise HTTPException(status_code=400, detail="Max drawdown must be a fraction between 0 and 1")
+    if not (0 <= min_profit_factor <= 100):
+        raise HTTPException(status_code=400, detail="Profit factor must be between 0 and 100")
+
+    settings = await get_settings(db)
+    settings.min_trades = min_trades
+    settings.min_winrate = min_winrate
+    settings.min_sharpe = min_sharpe
+    settings.max_drawdown = max_drawdown
+    settings.min_profit_factor = min_profit_factor
+    await db.flush()
+    return thresholds_dict(settings)
 
 
 @router.get("/stats")

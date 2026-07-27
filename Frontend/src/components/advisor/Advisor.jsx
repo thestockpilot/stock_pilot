@@ -37,6 +37,48 @@ function fmtMoney(n) {
   return '$' + Math.round(Number(n) || 0).toLocaleString();
 }
 
+// Export the full backtest — summary + every trade — as a CSV the user can download.
+function downloadBacktestLog(bt, ticker, period, profile) {
+  if (!bt) return;
+  const csv = (v) => {
+    const s = v == null ? '' : String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const rows = [];
+  rows.push(['StockPilot Backtest Log']);
+  rows.push(['Ticker', ticker]);
+  rows.push(['Period', period]);
+  rows.push(['Risk tolerance', profile?.risk || '']);
+  rows.push(['Time horizon', profile?.horizon || '']);
+  rows.push(['Generated', new Date().toISOString()]);
+  rows.push([]);
+  rows.push(['Summary']);
+  rows.push(['Strategy return %', bt.total_return_pct]);
+  rows.push(['Buy & hold return %', bt.buy_hold_return_pct]);
+  rows.push(['Edge vs hold %', bt.edge_vs_hold_pct]);
+  rows.push(['Win rate %', (bt.win_rate * 100).toFixed(2)]);
+  rows.push(['Sharpe ratio', bt.sharpe]);
+  rows.push(['Max drawdown %', bt.max_drawdown_pct]);
+  rows.push(['Profit factor', bt.profit_factor]);
+  rows.push(['Total trades', bt.trades]);
+  rows.push([]);
+  rows.push(['Trade Ledger']);
+  rows.push(['#', 'Entry date', 'Entry price', 'Exit date', 'Exit price', 'Size', 'PnL', 'Return %', 'Status']);
+  (bt.trades_log || []).forEach((t, i) => {
+    rows.push([i + 1, t.entry_date, t.entry_price, t.exit_date, t.exit_price, t.size, t.pnl, t.return_pct, t.status]);
+  });
+  const content = rows.map((r) => r.map(csv).join(',')).join('\n');
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `backtest_${ticker}_${period}_${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 function fmtBigNum(n) {
   if (!n) return '—';
   if (n >= 1e12) return '$' + (n / 1e12).toFixed(2) + 'T';
@@ -748,12 +790,17 @@ export default function Advisor() {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div className="period-tabs">
-                  {['6mo', '1y', '2y'].map((p) => (
+                  {['6mo', '1y', '2y', '5y'].map((p) => (
                     <button key={p} className={`period-tab${backtestPeriod === p ? ' on' : ''}`} onClick={() => setBacktestPeriod(p)}>
                       {p}
                     </button>
                   ))}
                 </div>
+                {backtest && !btLoading && (
+                  <button className="btn" onClick={() => downloadBacktestLog(backtest, ticker, backtestPeriod, profile)} title="Download the full trade ledger as CSV">
+                    ↓ Download log
+                  </button>
+                )}
                 <button className="btn gold run-bt" onClick={() => runBacktest()} disabled={btLoading || !ticker}>
                   {btLoading ? '⟳ Running...' : '▶ Run Backtest'}
                 </button>
