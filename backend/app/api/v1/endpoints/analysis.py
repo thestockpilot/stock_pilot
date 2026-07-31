@@ -1,7 +1,10 @@
 """
 Analysis endpoints — factor scores, backtest, bull/bear cases.
 
-Exposes the XGBoost recommendation engine through REST.
+These routes serve the transparent six-factor scoring model, which is computed
+live from yfinance data plus FinBERT news sentiment and is deliberately kept
+explainable. The XGBoost model is exposed separately by
+``predictions.py`` (``GET /predictions/{ticker}/live``).
 """
 
 from __future__ import annotations
