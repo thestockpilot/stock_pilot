@@ -1,0 +1,126 @@
+<title>StockPilot — DFD Level 0</title>
+<style>
+  :root{
+    --bg:#0f0f12; --surface:#18181b; --surface2:#1f1f23; --border:#2e2e33;
+    --text:#fafaf9; --muted:#a1a1aa; --muted2:#71717a; --accent:#d4a853;
+    --entity:#378add; --process:#d4a853; --store:#1d9e75;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --bg:#f6f5f2; --surface:#ffffff; --surface2:#faf9f6; --border:#e4e1d8;
+      --text:#1a1a1f; --muted:#5a5a64; --muted2:#8c8c94; --accent:#a97b1e; }
+  }
+  :root[data-theme="dark"]{ --bg:#0f0f12; --surface:#18181b; --surface2:#1f1f23; --border:#2e2e33;
+    --text:#fafaf9; --muted:#a1a1aa; --muted2:#71717a; --accent:#d4a853; }
+  :root[data-theme="light"]{ --bg:#f6f5f2; --surface:#ffffff; --surface2:#faf9f6; --border:#e4e1d8;
+    --text:#1a1a1f; --muted:#5a5a64; --muted2:#8c8c94; --accent:#a97b1e; }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.5}
+  .wrap{max-width:1100px;margin:0 auto;padding:32px 24px 60px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent)}
+  h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:8px 0 4px;text-wrap:balance}
+  .sub{color:var(--muted);font-size:14.5px;margin:0 0 22px}
+  .legend{display:flex;gap:22px;flex-wrap:wrap;margin:0 0 18px;font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:8px}
+  .swatch{width:26px;height:15px;border-radius:3px;border:1.5px solid}
+  .swatch.entity{background:#e6f1fb;border-color:#185fa5}
+  .swatch.process{background:#fdf6e3;border-color:#b8801f;border-radius:9px}
+  .swatch.store{background:#e1f5ee;border-color:#0f6e56;border-left:none;border-right:none;border-radius:0}
+  .diagram{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;overflow-x:auto}
+  .diagram pre.mermaid{display:flex;justify-content:center;min-width:640px;background:transparent}
+  .note{margin-top:22px;background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:10px;padding:14px 18px}
+  .note h2{font-size:13px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--accent);margin:0 0 8px}
+  .note ul{margin:0;padding-left:18px;color:var(--muted);font-size:13.5px}
+  .note li{margin:3px 0}
+  .note b{color:var(--text);font-weight:600}
+  footer{margin-top:20px;font-family:var(--mono);font-size:11px;color:var(--muted2)}
+</style>
+
+<div class="wrap">
+  <div class="eyebrow">StockPilot · Chapter 03 System Design</div>
+  <h1>Data Flow Diagram — Level 0</h1>
+  <p class="sub">The major processes of the AI investment-advisory platform, the external entities that interact with it, and the data stores each process reads from and writes to.</p>
+
+  <div class="legend">
+    <span><span class="swatch entity"></span> External entity</span>
+    <span><span class="swatch process"></span> Process</span>
+    <span><span class="swatch store"></span> Data store</span>
+    <span>→ labelled data flow</span>
+  </div>
+
+  <div class="diagram">
+<pre class="mermaid">
+flowchart TB
+  INV["Investor"]:::entity
+  ANA["Financial Analyst"]:::entity
+  ADM["Administrator"]:::entity
+  YF["Yahoo Finance API"]:::entity
+
+  P1(["1.0 User Authentication &amp; Profiles"]):::process
+  P2(["2.0 AI Stock Analysis"]):::process
+  P3(["3.0 Portfolio &amp; Watchlist"]):::process
+  P4(["4.0 Trading Journal"]):::process
+  P5(["5.0 Strategy &amp; Marketplace"]):::process
+  P6(["6.0 Administration"]):::process
+
+  D1[("D1 Users")]:::store
+  D2[("D2 Market Data")]:::store
+  D3[("D3 Holdings &amp; Watchlist")]:::store
+  D4[("D4 Trades")]:::store
+  D5[("D5 Strategies")]:::store
+  D6[("D6 Listings &amp; Ratings")]:::store
+  D7[("D7 Notifications &amp; Settings")]:::store
+
+  INV -->|credentials| P1
+  ANA -->|credentials| P1
+  ADM -->|credentials| P1
+  P1 -->|session token| INV
+  P1 --- D1
+
+  INV -->|ticker + weights| P2
+  P2 -->|Buy / Hold / Sell + factors| INV
+  P2 -->|price / news request| YF
+  YF -->|OHLCV + headlines| P2
+  P2 --- D2
+  P2 -->|verdict alert| D7
+
+  INV -->|manage positions| P3
+  P3 -->|valuation + P/L| INV
+  P3 --- D3
+
+  INV -->|trade entry| P4
+  P4 -->|win rate + P/L| INV
+  P4 --- D4
+
+  ANA -->|create / submit strategy| P5
+  P5 -->|backtest report| ANA
+  INV -->|browse / purchase| P5
+  P5 -->|verified strategy| INV
+  P5 --- D5
+  P5 --- D6
+
+  ADM -->|approve / manage| P6
+  P6 -->|platform reports| ADM
+  P6 --- D1
+  P6 --- D6
+  P6 --- D7
+
+  classDef entity fill:#e6f1fb,stroke:#185fa5,color:#042c53,stroke-width:1.5px;
+  classDef process fill:#fdf6e3,stroke:#b8801f,color:#5a3d00,stroke-width:1.5px;
+  classDef store fill:#e1f5ee,stroke:#0f6e56,color:#04342c,stroke-width:1.5px;
+</pre>
+  </div>
+
+  <div class="note">
+    <h2>Reading the diagram</h2>
+    <ul>
+      <li><b>External entities</b> (Investor, Financial Analyst, Administrator, Yahoo Finance API) sit outside the system and exchange data with it.</li>
+      <li><b>Processes</b> 1.0–6.0 are the platform's main functions; each can be decomposed further in a Level&nbsp;1 DFD (e.g. 2.0 → factor scoring, verdict, sentiment).</li>
+      <li><b>Data stores</b> D1–D7 group the PostgreSQL tables. A plain line (—) between a process and a store denotes read/write access; arrows show directional data flows.</li>
+      <li>Yahoo Finance supplies live prices, historical OHLCV, and news headlines used by the AI analysis and backtesting.</li>
+    </ul>
+  </div>
+
+  <footer>StockPilot — CSE5015 Computing Project · Data Flow Diagram (Level 0)</footer>
+</div>

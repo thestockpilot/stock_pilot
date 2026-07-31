@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, RadialLinearScale, ArcElement, Filler, Legend, Tooltip } from 'chart.js';
 import { Line, Bar, Radar } from 'react-chartjs-2';
 import { useStocks } from '../../hooks/useStocks';
-import { usePredictions } from '../../hooks/usePredictions';
+import { usePredictions, useLivePrediction } from '../../hooks/usePredictions';
 import { useMarketStatus, useLiveQuote, useChartData, useFactorAnalysis, useBacktest, useBullBear, useFundamentals, useSentiment } from '../../hooks/useLiveMarket';
 import { useAuth } from '../../context/AuthContext';
 import TradingChart from './TradingChart';
@@ -190,7 +190,14 @@ export default function Advisor() {
   }, [stocks, ticker]);
 
   const currentStock = stocks.find((s) => s.ticker === ticker);
-  const prediction = predictions.find((p) => p.ticker === ticker);
+  const storedPrediction = predictions.find((p) => p.ticker === ticker);
+
+  // Live XGBoost signal for the selected ticker (drives the hero verdict below).
+  const { prediction: livePrediction, loading: liveLoading } = useLivePrediction(ticker, !!ticker);
+
+  // Prefer the freshly computed XGBoost signal; fall back to the stored row
+  // while it loads or if the model is unavailable.
+  const prediction = livePrediction || storedPrediction;
 
   const price = quote?.price || 0;
   const change = quote?.change || 0;
@@ -481,6 +488,12 @@ export default function Advisor() {
                 {signal === 'HOLD' && ' The model finds no strong directional signal at this time.'}
                 {' Composite score: '}<b>{compositeScore.toFixed(0)}/100</b>.
                 {' Model version: '}<b>{prediction?.model_version || 'xgboost_v1'}</b>.
+                {liveLoading && <span style={{ marginLeft: 6, opacity: .7 }}>· running model…</span>}
+                {!liveLoading && livePrediction && (
+                  <span style={{ marginLeft: 6 }} className="live-badge" title="Generated just now by the XGBoost model">
+                    <span className="lb-dot" />MODEL LIVE
+                  </span>
+                )}
                 {marketStatus.is_open && <span style={{ marginLeft: 6 }} className="live-badge"><span className="lb-dot" />LIVE</span>}
               </div>
             </div>
