@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.db.session import get_db
-from app.db.models.user import User
+from app.db.models.user import User, UserRole
 from app.schemas.auth import LoginRequest, RegisterRequest, RefreshRequest, TokenResponse
 from app.schemas.user import UserOut
 from app.core.security import hash_password, verify_password, create_access_token, create_refresh_token, decode_token
@@ -34,6 +34,7 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
         email=body.email,
         password_hash=hash_password(body.password),
         full_name=body.full_name,
+        role=UserRole(body.role),
     )
     db.add(user)
     await db.flush()

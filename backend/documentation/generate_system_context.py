@@ -158,7 +158,7 @@ st.append(P(
 st.append(P("1.1 User roles", "H2"))
 st.append(table(["Role", "Capabilities"], [
     ["investor", "Register/login, search stocks, tune factor weights, get verdicts, run backtests, manage portfolio &amp; watchlist, log trades, browse/purchase marketplace strategies, request to publish a strategy."],
-    ["analyst", "All investor capabilities. (Role exists in the schema and is enforced by RBAC, but publishing is now open to every authenticated user &mdash; see Section 11.)"],
+    ["analyst", "All investor capabilities, plus the exclusive right to submit a strategy for marketplace review. Analysts see a dedicated Creator Dashboard showing their published strategies, sales, earnings and ratings."],
     ["admin", "All of the above plus the Admin dashboard: approve/reject/remove listings, manage users (role, status, delete), configure marketplace thresholds, view revenue and platform statistics."],
 ], [0.85*inch, CW - 0.85*inch], code_cols=(0,)))
 
@@ -333,6 +333,7 @@ api_groups = [
         ["GET", "/stocks/{ticker}/history", "Stored OHLCV rows", "price_history"],
         ["GET", "/predictions", "All stored predictions (newest first)", "predictions"],
         ["GET", "/predictions/{ticker}", "Latest stored prediction for a ticker", "predictions"],
+        ["GET", "/predictions/{ticker}/live", "<b>Runs the trained XGBoost model</b> on current data and persists the result", "predictions (INSERT)"],
     ]),
     ("portfolio.py / watchlist.py / trades.py &mdash; user data", [
         ["GET/POST", "/portfolio", "List holdings (with live prices) / add holding", "holdings, stocks"],
@@ -422,7 +423,7 @@ st.append(table(["File", "Hooks"], [
 
 st.append(P("7.4 Screens", "H2"))
 st.append(table(["Screen", "What it shows"], [
-    ["Dashboard", "Market indices strip, 5 stat cards (total value, today P/L, unrealised P/L, open positions, AI BUY count), portfolio-vs-benchmark line chart, watchlist with verdict badges, allocation doughnut, sector breakdown bars, featured strategy, recent journal activity."],
+    ["Dashboard (role-based)", "One route (<font face='Courier'>/</font>) served by a dispatcher that renders the dashboard for the signed-in role &mdash; see 7.5. All three share a market-indices strip, watchlist with verdict badges, and featured strategy."],
     ["Advisor", "Ticker search + chips; strategy presets or six weight sliders; risk/horizon profile; hero verdict card (BUY/HOLD/SELL + confidence bar); factor contribution bars; price &amp; MA chart; backtest panel (period tabs 6mo/1y/2y/5y, Run Backtest, Download log CSV); bull/bear cases; news sentiment; fundamentals."],
     ["Portfolio", "Stat cards (market value, cost basis, unrealised P/L, cash), holdings table with live price and verdict, allocation chart, add/edit/close position."],
     ["Marketplace", "Threshold cards (live from the API), search/sort/filter toolbar, strategy cards with weights, backtest metrics, rating and price, and the publish-request dialog (select saved strategy, run a real backtest to auto-fill metrics, threshold checklist, submit)."],
@@ -430,6 +431,23 @@ st.append(table(["Screen", "What it shows"], [
     ["Admin", "Six stat tiles; tabs for Revenue, Pending Reviews (full backtest report with per-threshold pass/fail), Listings, Strategies, Users, and Thresholds (editable approval criteria)."],
     ["Settings", "Profile, security/password, notification preferences, display preferences."],
 ], [0.85*inch, CW - 0.85*inch]))
+
+st.append(P("7.5 Role-based dashboards", "H2"))
+st.append(P("The <font face='Courier'>/</font> route renders <font face='Courier'>RoleDashboard</font>, a dispatcher "
+            "that selects one of three dashboards by <font face='Courier'>user.role</font>. Each is lazily loaded, "
+            "so a user downloads only their own. Shared panels live in "
+            "<font face='Courier'>components/dashboard/widgets/</font> and are imported by all three rather than "
+            "duplicated. An unrecognised role falls back to the investor view, which exposes only the user's own data."))
+st.append(table(["Dashboard", "Role", "Role-specific content"], [
+    ["InvestorDashboard", "investor", "Total value, today's and unrealised P/L, open positions, AI BUY count, portfolio-vs-benchmark chart, allocation doughnut, sector breakdown, recent journal activity."],
+    ["AnalystDashboard", "analyst", "Creator view: total earnings, published count, awaiting review, strategies created, average rating; a table of authored strategies with status/sales/revenue/rating; best-performing strategy."],
+    ["AdminDashboard", "admin", "Platform overview: total revenue, pending reviews, verified listings, user and strategy counts; the pending-review queue; quick links into the full admin console at /admin."],
+], [1.25*inch, 0.7*inch, CW - 1.95*inch]))
+st.append(Spacer(1, 5))
+st.append(callout("Dashboard selection is presentational only",
+    "The dispatcher decides what to <i>show</i>, never what a user may <i>do</i>. Navigation tabs are filtered the "
+    "same way. Every privileged operation is authorised server-side, so a role edited in the browser grants no "
+    "access &mdash; an investor calling the publish endpoint still receives <b>403</b>.", LIGHTG, GREEN))
 
 # ───────────────── 8. AI PIPELINE ─────────────────
 st.append(PageBreak())
@@ -474,9 +492,23 @@ st.append(P("8.4 XGBoost predictor", "H2"))
 st.append(P("<font face='Courier'>app/services/recommendation/engine.py</font> defines <font face='Courier'>StockPredictor</font> "
             "with <font face='Courier'>prepare_data, train, walk_forward_evaluate, evaluate, backtest, predict</font>. "
             "It trains a gradient-boosted classifier on the engineered feature set to produce directional "
-            "probabilities. The user-facing verdict shown in the Advisor comes from the transparent six-factor "
-            "score (chosen for explainability); the XGBoost service supplies the probability model and stored "
-            "<font face='Courier'>predictions</font> rows."))
+            "probabilities."))
+st.append(P("The model is served live by <font face='Courier'>GET /predictions/{ticker}/live</font>. The endpoint "
+            "loads the trained bundle once per process, runs inference in a worker thread (the call performs a "
+            "yfinance download plus CPU-bound scoring, so it must not block the event loop), and <b>persists the "
+            "result to the predictions table</b> &mdash; so stored predictions reflect real model output rather than "
+            "seed data. The Advisor's headline verdict is taken from this live prediction, falling back to the "
+            "stored row while it loads."))
+st.append(Spacer(1, 4))
+st.append(callout("Model configuration (tuned)",
+    "Walk-forward evaluation showed the original configuration scoring <b>49.3% accuracy &mdash; below random</b>. "
+    "Two changes were made on the evidence: the prediction horizon moved from <b>1 day to 5 days</b> (a one-day "
+    "move is dominated by noise), and the feature set was restricted to the <b>15 stationary, scale-free "
+    "indicators</b>, dropping 18 raw price levels such as <font face='Courier'>SMA_20</font> and "
+    "<font face='Courier'>EMA_50</font> whose absolute values do not transfer across tickers or across time. "
+    "Per-ticker walk-forward accuracy rose to roughly <b>56%</b>. Note the honest limitation: a model trained on "
+    "one set of tickers did <b>not</b> generalise to unseen tickers (AUC below 0.5), so the model is meaningful "
+    "per instrument rather than as a single global predictor.", LIGHTB, BLUE))
 
 st.append(P("8.5 Backtesting engine (vectorbt)", "H2"))
 st.append(P("<font face='Courier'>_run_vectorbt_backtest()</font> in <font face='Courier'>analysis.py</font>. "
@@ -602,9 +634,14 @@ st.append(table(["Area", "Proposal said", "Actually implemented"], [
      "The backtest is <b>single-ticker</b> (vectorbt) over the selected period."],
     ["Storage tables", "purchases, daily_sentiment, admin_logs, personal_strategies tables.",
      "None of these exist. Purchases are tracked by <font face='Courier'>sales_count</font> on the listing; ratings live in marketplace_ratings; there is no admin audit-log table."],
-    ["Publishing", "Analyst-only publishing workflow.",
-     "Publishing is open to <b>any authenticated user</b>; quality is still gated by the threshold check plus admin approval."],
 ], [0.95*inch, 2.1*inch, CW - 3.05*inch]))
+st.append(Spacer(1, 6))
+st.append(callout("Resolved &mdash; publishing is analyst-only, as originally proposed",
+    "An earlier build briefly opened publishing to every authenticated user. That has been reverted: "
+    "<font face='Courier'>POST /strategies/{id}/publish</font> now depends on "
+    "<font face='Courier'>require_role(analyst, admin)</font> and returns <b>403</b> for an investor, while "
+    "approval remains admin-only. The implementation therefore matches the proposal on this point.",
+    LIGHTG, GREEN))
 
 st.append(P("11.1 Tables not on the live compute path", "H2"))
 st.append(P("<font face='Courier'>price_history</font> and <font face='Courier'>predictions</font> exist and are "
@@ -645,7 +682,9 @@ st.append(code(
 DEMO ACCOUNTS
    demo@stockpilot.io    / demo1234      (investor, fully populated)
    admin@stockpilot.io   / admin1234     (admin)
-   analyst1@stockpilot.io/ analyst1234   (analyst)
+   sarah@stockpilot.io   / analyst1234   (analyst - owns published strategies)
+   james@stockpilot.io   / analyst1234   (analyst)
+   alex@stockpilot.io    / analyst1234   (analyst)
 
 NOTES
    .env is git-ignored - create it per machine.

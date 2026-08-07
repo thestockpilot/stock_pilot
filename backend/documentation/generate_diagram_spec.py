@@ -394,7 +394,7 @@ st.append(table(["ID","Use case","Actor(s)","Notes for the diagram"], [
  ["UC-15","Browse marketplace","Investor","Search, filter, sort"],
  ["UC-16","Purchase strategy","Investor","Payment is simulated"],
  ["UC-17","Rate purchased strategy","Investor",""],
- ["UC-18","Request strategy publication","Investor, Analyst","&laquo;include&raquo; Validate against thresholds"],
+ ["UC-18","Request strategy publication","Analyst","Analyst-only; &laquo;include&raquo; Validate against thresholds"],
  ["UC-19","Review pending listing","Administrator","Views the full backtest report"],
  ["UC-20","Approve / reject listing","Administrator","&laquo;extend&raquo; Review pending listing"],
  ["UC-21","Remove or delete listing","Administrator",""],
@@ -915,10 +915,22 @@ st.append(P("11.7 Backtesting is single-ticker", "H3"))
 st.append(P("The vectorbt simulation runs on one ticker over the selected period; it does not aggregate across a "
             "basket. Note this on any activity or sequence diagram covering the backtest."))
 
-st.append(P("11.8 Publishing is open to all authenticated users", "H3"))
-st.append(P("Although an <font face='Courier'>analyst</font> role exists, the publish endpoint accepts any signed-in "
-            "user; quality is gated by the threshold check and administrator approval rather than by role. On the "
-            "use-case diagram, associate UC-18 with Investor as well as Financial Analyst."))
+st.append(P("11.8 Publishing is restricted to analysts; approval to administrators", "H3"))
+st.append(P("<font face='Courier'>POST /strategies/{id}/publish</font> depends on "
+            "<font face='Courier'>require_role(analyst, admin)</font>, so an investor receives <b>403</b> before the "
+            "handler runs. Approval, rejection and removal depend on "
+            "<font face='Courier'>require_role(admin)</font>. On the use-case diagram associate <b>UC-18 with "
+            "Financial Analyst only</b> (Administrator inherits it through generalisation), and keep UC-19 to UC-24 "
+            "with Administrator alone. Quality is gated twice: by the threshold check at submission and by "
+            "administrator approval before the listing becomes public."))
+
+st.append(P("11.9 Dashboards are role-specific behind a single route", "H3"))
+st.append(P("The <font face='Courier'>/</font> route renders a dispatcher that selects "
+            "<font face='Courier'>InvestorDashboard</font>, <font face='Courier'>AnalystDashboard</font> or "
+            "<font face='Courier'>AdminDashboard</font> from <font face='Courier'>user.role</font>; shared panels "
+            "(market indices, watchlist, featured strategy) are common components reused by all three. On a "
+            "component diagram, model this as one <font face='Courier'>RoleDashboard</font> component with three "
+            "alternative realisations plus a shared widget package &mdash; not as three separate routes."))
 
 def footer(canvas, d):
     canvas.saveState()

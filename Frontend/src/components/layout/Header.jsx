@@ -3,12 +3,18 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../hooks/useNotifications';
 
-const BASE_TABS = [
-  { key: '/', label: 'Dashboard' },
-  { key: '/advisor', label: 'Advisor' },
+/**
+ * Navigation is role-aware: `roles` lists who may see a tab, and a tab without
+ * `roles` is common to everyone. This governs visibility only — the API
+ * authorises every request independently.
+ */
+const NAV_ITEMS = [
+  { key: '/',            label: 'Dashboard' },   // role-specific view behind one route
+  { key: '/advisor',     label: 'Advisor' },
   { key: '/marketplace', label: 'Marketplace' },
-  { key: '/portfolio', label: 'Portfolio' },
-  { key: '/journal', label: 'Journal' },
+  { key: '/portfolio',   label: 'Portfolio' },   // every role may still invest
+  { key: '/journal',     label: 'Journal' },
+  { key: '/admin',       label: 'Admin',      roles: ['admin'] },
 ];
 
 export default function Header() {
@@ -30,10 +36,9 @@ export default function Header() {
     return () => document.removeEventListener('click', handler);
   }, []);
 
-  const isAdmin = user?.role === 'admin';
-  const NAV_TABS = isAdmin
-    ? [...BASE_TABS, { key: '/admin', label: 'Admin' }]
-    : BASE_TABS;
+  const NAV_TABS = NAV_ITEMS.filter(
+    (tab) => !tab.roles || tab.roles.includes(user?.role),
+  );
 
   const initials = user?.full_name
     ? user.full_name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)

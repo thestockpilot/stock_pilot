@@ -10,7 +10,7 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
 
   const [signInForm, setSignInForm] = useState({ email: '', password: '' });
-  const [signUpForm, setSignUpForm] = useState({ full_name: '', email: '', password: '', confirm: '' });
+  const [signUpForm, setSignUpForm] = useState({ full_name: '', email: '', password: '', confirm: '', role: 'investor' });
 
   const handleSignIn = async (e) => {
     e.preventDefault();
@@ -39,7 +39,7 @@ export default function AuthPage() {
     }
     setLoading(true);
     try {
-      await register(signUpForm.full_name, signUpForm.email, signUpForm.password);
+      await register(signUpForm.full_name, signUpForm.email, signUpForm.password, signUpForm.role);
       navigate('/');
     } catch (err) {
       setError(err.response?.data?.detail || 'Registration failed. Please try again.');
@@ -113,6 +113,25 @@ export default function AuthPage() {
                 value={signUpForm.full_name}
                 onChange={(e) => setSignUpForm({ ...signUpForm, full_name: e.target.value })}
               />
+            </div>
+            <div className="a-field">
+              <label>I am registering as</label>
+              <div className="a-role-group">
+                {[
+                  { value: 'investor', label: 'Investor', hint: 'Track a portfolio and get AI verdicts' },
+                  { value: 'analyst', label: 'Financial Analyst', hint: 'Build and publish strategies' },
+                ].map((opt) => (
+                  <button
+                    type="button"
+                    key={opt.value}
+                    className={`a-role${signUpForm.role === opt.value ? ' on' : ''}`}
+                    onClick={() => setSignUpForm({ ...signUpForm, role: opt.value })}
+                  >
+                    <span className="a-role-label">{opt.label}</span>
+                    <span className="a-role-hint">{opt.hint}</span>
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="a-field">
               <label>Email address</label>

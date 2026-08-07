@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMarketplace } from '../../hooks/useMarketplace';
+import { useAuth } from '../../context/AuthContext';
 import api from '../../api/client';
 import LoadingSpinner from '../ui/LoadingSpinner';
 import EmptyState from '../ui/EmptyState';
@@ -48,7 +49,12 @@ const THRESHOLD_META = [
 
 export default function Marketplace() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { listings, loading, refetch } = useMarketplace();
+
+  // Visibility only — the API independently enforces the same rule.
+  const canPublish = user?.role === 'analyst' || user?.role === 'admin';
+
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState('rating');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -196,15 +202,25 @@ export default function Marketplace() {
         </div>
       )}
 
-      {/* Publish CTA — open to every user */}
-      <div className="sec-label">Publish your strategy</div>
-      <div className="card pad creator-cta">
-        <div>
-          <div className="ctitle"><span className="dot" />Request to publish a strategy</div>
-          <div className="csub" style={{ marginBottom: 0 }}>Design and save a strategy in the Advisor, then request approval here. Run a backtest &mdash; if it clears every threshold above, an admin reviews and lists it, and you earn from every sale.</div>
+      {/* Publish CTA — analysts and admins only (enforced server-side too) */}
+      <div className="sec-label">For analysts</div>
+      {canPublish ? (
+        <div className="card pad creator-cta">
+          <div>
+            <div className="ctitle"><span className="dot" />Request to publish a strategy</div>
+            <div className="csub" style={{ marginBottom: 0 }}>Design and save a strategy in the Advisor, then request approval here. Run a backtest &mdash; if it clears every threshold above, an admin reviews and lists it, and you earn from every sale.</div>
+          </div>
+          <button className="btn gold" onClick={() => setShowPublish(true)}>Request Publish</button>
         </div>
-        <button className="btn gold" onClick={() => setShowPublish(true)}>Request Publish</button>
-      </div>
+      ) : (
+        <div className="card pad creator-cta">
+          <div>
+            <div className="ctitle"><span className="dot" />Publish a strategy</div>
+            <div className="csub" style={{ marginBottom: 0 }}>Analysts design factor weights, submit them for automatic backtesting, and earn from every sale. Contact an administrator to request analyst access.</div>
+          </div>
+          <button className="btn" disabled style={{ opacity: .5 }}>Analyst role required</button>
+        </div>
+      )}
 
       {/* Publish Dialog */}
       {showPublish && (

@@ -1008,7 +1008,7 @@ story.append(callout_box(
     "Default Login Credentials (from seed)",
     "Demo user: demo@stockpilot.io / demo1234 (investor role)<br/>"
     "Admin: admin@stockpilot.io / admin1234 (admin role)<br/>"
-    "Analysts: analyst1@stockpilot.io, analyst2@..., analyst3@... / analyst1234",
+    "Analysts: sarah@stockpilot.io, james@stockpilot.io, alex@stockpilot.io / analyst1234",
     LIGHT_GOLD, ACCENT))
 story.append(PageBreak())
 

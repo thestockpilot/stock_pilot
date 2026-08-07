@@ -1378,6 +1378,18 @@ wheels = [
 ]
 
 [[package]]
+name = "httplib2"
+version = "0.32.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pyparsing" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/84/f5/ccf58de92d61e3ad921119668f54ed36ca1d0cf5dcc5c1657dfb164fd78b/httplib2-0.32.0.tar.gz", hash = "sha256:48a0ef30a42db65d8f3399045e1d09ab0ba66e3b9efc360d07f80ea55d286025", size = 254283, upload-time = "2026-06-26T10:13:56.265Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/33/a0/550eec327e5f5c7b732531c489f5307efec41f047b0d703bd4ca1e5ad2db/httplib2-0.32.0-py3-none-any.whl", hash = "sha256:dc6705cacdf3fb0a2aba7629fa33c90fd93e30035db0c157325826be177e4816", size = 93148, upload-time = "2026-06-26T10:13:54.985Z" },
+]
+
+[[package]]
 name = "httptools"
 version = "0.8.0"
 source = { registry = "https://pypi.org/simple" }
@@ -3477,6 +3489,17 @@ wheels = [
 ]
 
 [[package]]
+name = "plantuml"
+version = "0.3.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httplib2" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a9/1a/4603314acf466fdad91b7f6c83eb1364a7e279f9a8805febe3554f17faf6/plantuml-0.3.0-py3-none-any.whl", hash = "sha256:f21789bc4abc3e8888d23a8fa010e942989f1a73d6e50e10a54688cbee52aa1c", size = 5777, upload-time = "2019-11-01T17:10:06.808Z" },
+]
+
+[[package]]
 name = "platformdirs"
 version = "4.10.0"
 source = { registry = "https://pypi.org/simple" }
@@ -5206,6 +5229,7 @@ dependencies = [
     { name = "pandas", version = "3.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "passlib", extra = ["bcrypt"] },
     { name = "pdfplumber" },
+    { name = "plantuml" },
     { name = "psycopg2-binary" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
@@ -5260,6 +5284,7 @@ requires-dist = [
     { name = "pandas", specifier = ">=2.0.0" },
     { name = "passlib", extras = ["bcrypt"], specifier = ">=1.7.4" },
     { name = "pdfplumber", specifier = ">=0.11.10" },
+    { name = "plantuml", specifier = ">=0.3.0" },
     { name = "psycopg2-binary", specifier = ">=2.9.12" },
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "pydantic-settings", specifier = ">=2.14.2" },
