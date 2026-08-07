@@ -1,0 +1,141 @@
+@startuml
+title StockPilot - Sequence Diagram: Administrator
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam sequenceMessageAlign left
+skinparam maxMessageSize 200
+
+actor Administrator as Admin
+participant "React UI\n(Admin Console)" as UI
+participant "API Client\n(axios)" as API
+participant "FastAPI\nRouter" as Router
+participant "Auth\n(require_role admin)" as Auth
+database "PostgreSQL" as DB
+actor "Analyst / Investor" as User
+
+note over Admin
+  Every route below depends on
+  require_role(admin). An investor or
+  analyst calling any of them receives
+  403 Insufficient permissions.
+end note
+
+== 1. Load the platform overview ==
+
+Admin -> UI : open Dashboard
+UI -> API : GET /admin/stats
+API -> Router : request + Bearer token
+Router -> Auth : require_role(admin)
+
+alt caller is not an admin
+    Auth --> API : 403 Insufficient permissions
+else caller is admin
+    Auth --> Router : authorised
+    Router -> DB : COUNT users, strategies,\nlistings by status
+    Router -> DB : SUM(price_cents x sales_count)\nWHERE status IN (verified, listed)
+    DB --> Router : aggregate figures
+    Router --> API : 200 platform statistics
+end
+UI -> API : GET /admin/pending
+API -> Router : request
+Router -> DB : SELECT listings WHERE status = 'review'\n(eager load strategy + owner)
+DB --> Router : pending listings
+Router --> API : 200 listings with backtest reports
+API --> UI : render stats and review queue
+UI --> Admin : platform overview
+
+== 2. Review and approve a submitted strategy ==
+
+Admin -> UI : open Pending Reviews
+UI --> Admin : backtest report per listing:\ntrades, win rate, Sharpe,\ndrawdown, profit factor,\nthreshold checklist, factor weights
+
+Admin -> UI : Approve
+UI -> API : POST /admin/listings/{id}/approve
+API -> Router : request
+Router -> Auth : require_role(admin)
+Auth --> Router : authorised
+Router -> DB : SELECT listing (with strategy)
+DB --> Router : listing
+
+alt status is not 'review'
+    Router --> API : 400 Only listings in review\ncan be approved
+else status is 'review'
+    Router -> DB : status = 'verified'\nlisted_at = now()\nstrategy.is_published = true
+    DB --> Router : committed
+    Router --> API : 200 verified
+    note right of DB : listing becomes\npublicly visible
+end
+API --> UI : refresh admin data
+
+alt administrator rejects instead
+    Admin -> UI : Reject
+    UI -> API : POST /admin/listings/{id}/reject
+    Router -> DB : status = 'removed'\nstrategy.is_published = false
+    Router --> API : 200 removed
+end
+
+alt remove an already-live listing
+    Admin -> UI : Remove
+    UI -> API : POST /admin/listings/{id}/remove
+    note right of Router : no status guard -\nworks from any state
+    Router -> DB : status = 'removed'
+    Router --> API : 200 removed
+end
+
+== 3. Manage a user account ==
+
+Admin -> UI : Users tab -> change role
+UI -> API : PATCH /admin/users/{id}/role?role=analyst
+API -> Router : request
+Router -> Auth : require_role(admin)
+Auth --> Router : authorised
+
+alt target is the acting administrator
+    Router --> API : 400 Cannot change your own role
+else invalid role value
+    Router --> API : 400 Invalid role
+else valid
+    Router -> DB : UPDATE users SET role = ?
+    DB --> Router : committed
+    Router --> API : 200 updated
+    note right of DB : takes effect on the\nuser's next request
+end
+
+Admin -> UI : suspend a user
+UI -> API : PATCH /admin/users/{id}/status
+Router -> DB : is_active = NOT is_active
+DB --> Router : committed
+Router --> API : 200 status toggled
+
+User -> Router : any subsequent request
+Router -> Auth : authenticate
+Auth -> DB : SELECT user
+DB --> Auth : is_active = false
+Auth --> User : 401 User not found
+
+== 4. Configure marketplace thresholds ==
+
+Admin -> UI : Thresholds tab -> edit values
+UI -> API : PUT /admin/thresholds\n{minTrades, minWinrate, minSharpe,\nmaxDrawdown, minProfitFactor}
+API -> Router : request
+Router -> Auth : require_role(admin)
+Auth --> Router : authorised
+Router -> Router : validate bounds
+
+alt a value is out of range
+    Router --> API : 400 with the specific reason
+else all values valid
+    Router -> DB : UPDATE platform_settings (singleton row)
+    DB --> Router : committed
+    Router --> API : 200 updated thresholds
+end
+API --> UI : confirmation
+
+note over Router, DB
+  Effect is immediate and global, with no redeploy:
+  every later publish request re-reads this row, and
+  the marketplace threshold cards update for all users.
+end note
+
+@enduml

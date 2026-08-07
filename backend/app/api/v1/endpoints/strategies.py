@@ -5,10 +5,10 @@ from sqlalchemy import select
 from app.db.session import get_db
 from app.db.models.strategy import Strategy
 from app.db.models.marketplace import MarketplaceListing, ListingStatus
-from app.db.models.user import User
+from app.db.models.user import User, UserRole
 from app.db.models.settings import get_settings
 from app.schemas.strategy import StrategyCreate, StrategyUpdate, StrategyOut
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, require_role
 
 router = APIRouter(prefix="/strategies", tags=["strategies"])
 
@@ -76,11 +76,14 @@ async def request_publish(
     backtest_profit_factor: float = Body(default=0.0, embed=True),
     backtest_return: float = Body(default=0.0, embed=True),
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role(UserRole.analyst, UserRole.admin)),
 ):
-    # Any authenticated user may request that their own strategy be published.
-    # The submission is only accepted if the backtest thresholds below are met,
-    # and it still requires admin approval before it goes live on the marketplace.
+    """Submit one of your own strategies for marketplace review.
+
+    Restricted to the analyst and admin roles. The submission is accepted only
+    if every backtest threshold is met, and the listing still requires admin
+    approval before it becomes publicly visible.
+    """
     result = await db.execute(
         select(Strategy).where(Strategy.id == strategy_id, Strategy.owner_id == user.id)
     )

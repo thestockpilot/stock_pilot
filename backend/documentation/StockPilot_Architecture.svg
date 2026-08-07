@@ -1,0 +1,210 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1780" height="1560" viewBox="0 0 1780 1560" font-family="Helvetica, Arial, sans-serif">
+<rect width="1780" height="1560" fill="white"/>
+<text x="890.0" y="40" font-size="22" font-weight="bold" text-anchor="middle" fill="#111827">StockPilot — System Architecture</text>
+<text x="890.0" y="63" font-size="11.5" text-anchor="middle" fill="#6B7280">Layered architecture of the deployed system. The AI inference layer is represented as a black box — its contract is shown, its internals are not.</text>
+<rect x="56" y="88" width="1320" height="208" rx="6" fill="#F3F4F6" stroke="#111827" stroke-width="2"/>
+<text x="72" y="113" font-size="14" font-weight="bold" fill="#111827">1  ·  PRESENTATION TIER</text>
+<text x="1360" y="113" font-size="10.5" text-anchor="end" fill="#6B7280">React 18 · Vite 7 · react-router-dom 6 · Chart.js 4 · lightweight-charts 5</text>
+<rect x="74" y="132" width="200" height="62" rx="4" fill="white" stroke="#111827" stroke-width="1.5"/>
+<text x="174.0" y="151" font-size="11" font-weight="bold" text-anchor="middle" fill="#111827">Role Dashboard</text>
+<text x="174.0" y="166" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">investor / analyst /</text>
+<text x="174.0" y="179" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">admin, lazy-loaded</text>
+<rect x="289" y="132" width="200" height="62" rx="4" fill="white" stroke="#111827" stroke-width="1.5"/>
+<text x="389.0" y="151" font-size="11" font-weight="bold" text-anchor="middle" fill="#111827">Advisor</text>
+<text x="389.0" y="166" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">six-factor verdict,</text>
+<text x="389.0" y="179" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">chart, backtest</text>
+<rect x="504" y="132" width="200" height="62" rx="4" fill="white" stroke="#111827" stroke-width="1.5"/>
+<text x="604.0" y="151" font-size="11" font-weight="bold" text-anchor="middle" fill="#111827">Marketplace</text>
+<text x="604.0" y="166" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">browse, buy, rate,</text>
+<text x="604.0" y="179" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">request publish</text>
+<rect x="719" y="132" width="200" height="62" rx="4" fill="white" stroke="#111827" stroke-width="1.5"/>
+<text x="819.0" y="151" font-size="11" font-weight="bold" text-anchor="middle" fill="#111827">Portfolio</text>
+<text x="819.0" y="166" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">holdings, watchlist,</text>
+<text x="819.0" y="179" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">allocation</text>
+<rect x="934" y="132" width="200" height="62" rx="4" fill="white" stroke="#111827" stroke-width="1.5"/>
+<text x="1034.0" y="151" font-size="11" font-weight="bold" text-anchor="middle" fill="#111827">Journal</text>
+<text x="1034.0" y="166" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">trade log,</text>
+<text x="1034.0" y="179" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">equity curve</text>
+<rect x="1149" y="132" width="200" height="62" rx="4" fill="white" stroke="#111827" stroke-width="1.5"/>
+<text x="1249.0" y="151" font-size="11" font-weight="bold" text-anchor="middle" fill="#111827">Settings</text>
+<text x="1249.0" y="166" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">profile, security,</text>
+<text x="1249.0" y="179" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">notifications</text>
+<rect x="74" y="208" width="420" height="66" rx="4" fill="white" stroke="#111827" stroke-width="1.5"/>
+<text x="284.0" y="227" font-size="11" font-weight="bold" text-anchor="middle" fill="#111827">Admin Console  (role: admin)</text>
+<text x="284.0" y="242" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">revenue · pending reviews · listings · strategies</text>
+<text x="284.0" y="255" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">users · marketplace thresholds</text>
+<rect x="509" y="208" width="420" height="66" rx="4" fill="white" stroke="#111827" stroke-width="1.5"/>
+<text x="719.0" y="227" font-size="11" font-weight="bold" text-anchor="middle" fill="#111827">Shared shell</text>
+<text x="719.0" y="242" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">Layout · role-aware Header · notification tray</text>
+<text x="719.0" y="255" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">StatCard, MarketIndices, WatchlistPanel widgets</text>
+<rect x="944" y="208" width="415" height="66" rx="4" fill="white" stroke="#111827" stroke-width="1.5"/>
+<text x="1151.5" y="227" font-size="11" font-weight="bold" text-anchor="middle" fill="#111827">API client  (axios)</text>
+<text x="1151.5" y="242" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">JWT Bearer interceptor · 401 refresh-and-retry</text>
+<text x="1151.5" y="255" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">with a queue so concurrent calls refresh once</text>
+<line x1="716.0" y1="296" x2="716.0" y2="344" stroke="#111827" stroke-width="2"/>
+<polygon points="716.0,344 710.0,334 722.0,334" fill="#111827"/>
+<text x="728.0" y="316.0" font-size="10" text-anchor="start" fill="#111827">HTTPS · JSON · REST  /api/v1</text>
+<rect x="56" y="344" width="1320" height="232" rx="6" fill="#F3F4F6" stroke="#111827" stroke-width="2"/>
+<text x="72" y="369" font-size="14" font-weight="bold" fill="#111827">2  ·  APPLICATION TIER</text>
+<text x="1360" y="369" font-size="10.5" text-anchor="end" fill="#6B7280">FastAPI (async) · Uvicorn ASGI · Pydantic v2</text>
+<rect x="74" y="388" width="78" height="32" rx="4" fill="white" stroke="#111827" stroke-width="1.5"/>
+<text x="113.0" y="407" font-size="10" font-weight="bold" text-anchor="middle" fill="#111827" font-family="Consolas, monospace">auth</text>
+<rect x="160" y="388" width="78" height="32" rx="4" fill="white" stroke="#111827" stroke-width="1.5"/>
+<text x="199.0" y="407" font-size="10" font-weight="bold" text-anchor="middle" fill="#111827" font-family="Consolas, monospace">users</text>
+<rect x="246" y="388" width="78" height="32" rx="4" fill="white" stroke="#111827" stroke-width="1.5"/>
+<text x="285.0" y="407" font-size="10" font-weight="bold" text-anchor="middle" fill="#111827" font-family="Consolas, monospace">dashboard</text>
+<rect x="332" y="388" width="78" height="32" rx="4" fill="white" stroke="#111827" stroke-width="1.5"/>
+<text x="371.0" y="407" font-size="10" font-weight="bold" text-anchor="middle" fill="#111827" font-family="Consolas, monospace">stocks</text>
+<rect x="418" y="388" width="78" height="32" rx="4" fill="white" stroke="#111827" stroke-width="1.5"/>
+<text x="457.0" y="407" font-size="10" font-weight="bold" text-anchor="middle" fill="#111827" font-family="Consolas, monospace">live</text>
+<rect x="504" y="388" width="78" height="32" rx="4" fill="white" stroke="#111827" stroke-width="1.5"/>
+<text x="543.0" y="407" font-size="10" font-weight="bold" text-anchor="middle" fill="#111827" font-family="Consolas, monospace">predictions</text>
+<rect x="590" y="388" width="78" height="32" rx="4" fill="white" stroke="#111827" stroke-width="1.5"/>
+<text x="629.0" y="407" font-size="10" font-weight="bold" text-anchor="middle" fill="#111827" font-family="Consolas, monospace">sentiment</text>
+<rect x="676" y="388" width="78" height="32" rx="4" fill="white" stroke="#111827" stroke-width="1.5"/>
+<text x="715.0" y="407" font-size="10" font-weight="bold" text-anchor="middle" fill="#111827" font-family="Consolas, monospace">analysis</text>
+<rect x="74" y="428" width="78" height="32" rx="4" fill="white" stroke="#111827" stroke-width="1.5"/>
+<text x="113.0" y="447" font-size="10" font-weight="bold" text-anchor="middle" fill="#111827" font-family="Consolas, monospace">strategies</text>
+<rect x="160" y="428" width="78" height="32" rx="4" fill="white" stroke="#111827" stroke-width="1.5"/>
+<text x="199.0" y="447" font-size="10" font-weight="bold" text-anchor="middle" fill="#111827" font-family="Consolas, monospace">marketplace</text>
+<rect x="246" y="428" width="78" height="32" rx="4" fill="white" stroke="#111827" stroke-width="1.5"/>
+<text x="285.0" y="447" font-size="10" font-weight="bold" text-anchor="middle" fill="#111827" font-family="Consolas, monospace">portfolio</text>
+<rect x="332" y="428" width="78" height="32" rx="4" fill="white" stroke="#111827" stroke-width="1.5"/>
+<text x="371.0" y="447" font-size="10" font-weight="bold" text-anchor="middle" fill="#111827" font-family="Consolas, monospace">watchlist</text>
+<rect x="418" y="428" width="78" height="32" rx="4" fill="white" stroke="#111827" stroke-width="1.5"/>
+<text x="457.0" y="447" font-size="10" font-weight="bold" text-anchor="middle" fill="#111827" font-family="Consolas, monospace">trades</text>
+<rect x="504" y="428" width="78" height="32" rx="4" fill="white" stroke="#111827" stroke-width="1.5"/>
+<text x="543.0" y="447" font-size="10" font-weight="bold" text-anchor="middle" fill="#111827" font-family="Consolas, monospace">notifications</text>
+<rect x="590" y="428" width="78" height="32" rx="4" fill="white" stroke="#111827" stroke-width="1.5"/>
+<text x="629.0" y="447" font-size="10" font-weight="bold" text-anchor="middle" fill="#111827" font-family="Consolas, monospace">admin</text>
+<rect x="776" y="388" width="288" height="72" rx="4" fill="white" stroke="#111827" stroke-width="1.5"/>
+<text x="920.0" y="407" font-size="11" font-weight="bold" text-anchor="middle" fill="#111827">Security  ·  core/security.py</text>
+<text x="920.0" y="422" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">JWT access + refresh (python-jose)</text>
+<text x="920.0" y="435" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">bcrypt password hashing (passlib)</text>
+<text x="920.0" y="448" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">get_current_user · require_role(*roles)</text>
+<rect x="1076" y="388" width="264" height="72" rx="4" fill="white" stroke="#111827" stroke-width="1.5"/>
+<text x="1208.0" y="407" font-size="11" font-weight="bold" text-anchor="middle" fill="#111827">Validation &amp; contracts</text>
+<text x="1208.0" y="422" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">Pydantic v2 request / response schemas</text>
+<text x="1208.0" y="435" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">CORS middleware · structured errors</text>
+<text x="1208.0" y="448" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">HTTP 400 / 401 / 403 / 404 / 503</text>
+<rect x="776" y="472" width="564" height="62" rx="4" fill="white" stroke="#111827" stroke-width="1.5"/>
+<text x="1058.0" y="491" font-size="11" font-weight="bold" text-anchor="middle" fill="#111827">Cross-cutting: RBAC is enforced server-side on every request</text>
+<text x="1058.0" y="506" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">Navigation hides what a role may not use, but the API is the authority — an investor calling a publish or admin route receives 403.</text>
+<line x1="716.0" y1="576" x2="716.0" y2="616" stroke="#111827" stroke-width="2"/>
+<polygon points="716.0,616 710.0,606 722.0,606" fill="#111827"/>
+<text x="728.0" y="592.0" font-size="10" text-anchor="start" fill="#111827">service calls</text>
+<rect x="56" y="616" width="1320" height="176" rx="6" fill="#F3F4F6" stroke="#111827" stroke-width="2"/>
+<text x="72" y="641" font-size="14" font-weight="bold" fill="#111827">3  ·  DOMAIN SERVICE LAYER</text>
+<text x="1360" y="641" font-size="10.5" text-anchor="end" fill="#6B7280">backend/app/services/</text>
+<rect x="74.0" y="660" width="245.6" height="76" rx="4" fill="white" stroke="#111827" stroke-width="1.5"/>
+<text x="196.8" y="679" font-size="10" font-weight="bold" text-anchor="middle" fill="#111827">market_data/fetcher.py</text>
+<text x="196.8" y="694" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">yfinance client</text>
+<text x="196.8" y="707" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">OHLCV, quotes, news, fundamentals</text>
+<rect x="333.6" y="660" width="245.6" height="76" rx="4" fill="white" stroke="#111827" stroke-width="1.5"/>
+<text x="456.40000000000003" y="679" font-size="10" font-weight="bold" text-anchor="middle" fill="#111827">indicators/featureEngine.py</text>
+<text x="456.40000000000003" y="694" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">23 technical indicators (ta)</text>
+<text x="456.40000000000003" y="707" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">feature engineering</text>
+<rect x="593.2" y="660" width="245.6" height="76" rx="4" fill="white" stroke="#111827" stroke-width="1.5"/>
+<text x="716.0" y="679" font-size="10" font-weight="bold" text-anchor="middle" fill="#111827">recommendation/engine.py</text>
+<text x="716.0" y="694" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">six-factor scoring model</text>
+<text x="716.0" y="707" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">StockPredictor wrapper</text>
+<rect x="852.8000000000001" y="660" width="245.6" height="76" rx="4" fill="white" stroke="#111827" stroke-width="1.5"/>
+<text x="975.6" y="679" font-size="10" font-weight="bold" text-anchor="middle" fill="#111827">sentiment/finbert.py</text>
+<text x="975.6" y="694" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">headline sentiment 0–100</text>
+<text x="975.6" y="707" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">OBV proxy fallback</text>
+<rect x="1112.4" y="660" width="245.6" height="76" rx="4" fill="white" stroke="#111827" stroke-width="1.5"/>
+<text x="1235.2" y="679" font-size="10" font-weight="bold" text-anchor="middle" fill="#111827">vectorbt backtest</text>
+<text x="1235.2" y="694" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">fees 0.1% · slippage 0.05%</text>
+<text x="1235.2" y="707" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">risk &amp; horizon parameters</text>
+<line x1="226" y1="792" x2="226" y2="856" stroke="#111827" stroke-width="2"/>
+<polygon points="226,856 220,846 232,846" fill="#111827"/>
+<text x="214.0" y="820.0" font-size="10" text-anchor="end" fill="#111827">feature vector,</text>
+<text x="214.0" y="833.0" font-size="10" text-anchor="end" fill="#111827">headline text</text>
+<line x1="1056" y1="856" x2="1056" y2="792" stroke="#111827" stroke-width="2"/>
+<polygon points="1056,792 1050,802 1062,802" fill="#111827"/>
+<text x="1068.0" y="820.0" font-size="10" text-anchor="start" fill="#111827">signal, confidence,</text>
+<text x="1068.0" y="833.0" font-size="10" text-anchor="start" fill="#111827">class probabilities,</text>
+<text x="1068.0" y="846.0" font-size="10" text-anchor="start" fill="#111827">sentiment score</text>
+<rect x="56" y="856" width="1110" height="196" rx="6" fill="#0B0F19" stroke="#111827" stroke-width="2"/>
+<text x="74" y="884" font-size="14" font-weight="bold" fill="white">4  ·  AI INFERENCE LAYER  —  BLACK BOX</text>
+<text x="1148" y="884" font-size="10.5" text-anchor="end" fill="#9CA3AF">internals not decomposed at this level</text>
+<text x="90" y="920" font-size="11" font-weight="bold" fill="white">INPUT CONTRACT</text>
+<text x="90" y="940" font-size="10" fill="#D1D5DB">▸  ticker symbol</text>
+<text x="90" y="956" font-size="10" fill="#D1D5DB">▸  6-month OHLCV window</text>
+<text x="90" y="972" font-size="10" fill="#D1D5DB">▸  engineered feature vector</text>
+<text x="90" y="988" font-size="10" fill="#D1D5DB">▸  recent news headlines</text>
+<text x="1136" y="920" font-size="11" font-weight="bold" text-anchor="end" fill="white">OUTPUT CONTRACT</text>
+<text x="1136" y="940" font-size="10" text-anchor="end" fill="#D1D5DB">BUY / HOLD / SELL signal  ◂</text>
+<text x="1136" y="956" font-size="10" text-anchor="end" fill="#D1D5DB">confidence 0–100  ◂</text>
+<text x="1136" y="972" font-size="10" text-anchor="end" fill="#D1D5DB">class probability vector  ◂</text>
+<text x="1136" y="988" font-size="10" text-anchor="end" fill="#D1D5DB">sentiment score 0–100  ◂</text>
+<rect x="348" y="918" width="244" height="96" rx="4" fill="#0B0F19" stroke="#111827" stroke-width="1.5"/>
+<text x="470.0" y="937" font-size="11" font-weight="bold" text-anchor="middle" fill="white">XGBoost classifier</text>
+<text x="470.0" y="952" font-size="9.5" text-anchor="middle" fill="white" opacity="0.85">models/xgboost/current/model.pkl</text>
+<text x="470.0" y="965" font-size="9.5" text-anchor="middle" fill="white" opacity="0.85">loaded once per worker process</text>
+<text x="470.0" y="978" font-size="9.5" text-anchor="middle" fill="white" opacity="0.85">walk-forward validated</text>
+<text x="470.0" y="991" font-size="9.5" text-anchor="middle" fill="white" opacity="0.85">( internals opaque )</text>
+<rect x="608" y="918" width="244" height="96" rx="4" fill="#0B0F19" stroke="#111827" stroke-width="1.5"/>
+<text x="730.0" y="937" font-size="11" font-weight="bold" text-anchor="middle" fill="white">FinBERT</text>
+<text x="730.0" y="952" font-size="9.5" text-anchor="middle" fill="white" opacity="0.85">transformers + torch</text>
+<text x="730.0" y="965" font-size="9.5" text-anchor="middle" fill="white" opacity="0.85">financial-domain language model</text>
+<text x="730.0" y="978" font-size="9.5" text-anchor="middle" fill="white" opacity="0.85">CPU inference</text>
+<text x="730.0" y="991" font-size="9.5" text-anchor="middle" fill="white" opacity="0.85">( internals opaque )</text>
+<line x1="1276" y1="792" x2="1276" y2="1112" stroke="#111827" stroke-width="2"/>
+<polygon points="1276,1112 1270,1102 1282,1102" fill="#111827"/>
+<text x="1288.0" y="948.0" font-size="10" text-anchor="start" fill="#111827">async ORM session</text>
+<text x="1288.0" y="961.0" font-size="10" text-anchor="start" fill="#111827">(SQLAlchemy → asyncpg)</text>
+<rect x="56" y="1112" width="1320" height="190" rx="6" fill="#F3F4F6" stroke="#111827" stroke-width="2"/>
+<text x="72" y="1137" font-size="14" font-weight="bold" fill="#111827">5  ·  PERSISTENCE TIER</text>
+<text x="1360" y="1137" font-size="10.5" text-anchor="end" fill="#6B7280">PostgreSQL 16 · SQLAlchemy 2.0 async · asyncpg · Alembic</text>
+<rect x="74" y="1156" width="300" height="128" rx="4" fill="white" stroke="#111827" stroke-width="1.5"/>
+<text x="224.0" y="1175" font-size="11" font-weight="bold" text-anchor="middle" fill="#111827">PostgreSQL 16</text>
+<text x="224.0" y="1190" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">single relational database</text>
+<text x="224.0" y="1203" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">3NF schema, 11 tables</text>
+<text x="224.0" y="1216" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">UNIQUE, FK and CHECK constraints</text>
+<text x="224.0" y="1229" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85"></text>
+<text x="224.0" y="1242" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">Alembic revision-controlled migrations</text>
+<rect x="392" y="1156" width="966" height="128" rx="4" fill="white" stroke="#111827" stroke-width="1.5"/>
+<text x="408" y="1176" font-size="11" font-weight="bold" fill="#111827">Tables</text>
+<text x="408" y="1200" font-size="10.5" font-family="Consolas, monospace" fill="#111827">users</text>
+<text x="643" y="1200" font-size="10.5" font-family="Consolas, monospace" fill="#111827">holdings</text>
+<text x="878" y="1200" font-size="10.5" font-family="Consolas, monospace" fill="#111827">watchlist</text>
+<text x="1113" y="1200" font-size="10.5" font-family="Consolas, monospace" fill="#111827">trades</text>
+<text x="408" y="1226" font-size="10.5" font-family="Consolas, monospace" fill="#111827">strategies</text>
+<text x="643" y="1226" font-size="10.5" font-family="Consolas, monospace" fill="#111827">marketplace_listings</text>
+<text x="878" y="1226" font-size="10.5" font-family="Consolas, monospace" fill="#111827">marketplace_ratings</text>
+<text x="1113" y="1226" font-size="10.5" font-family="Consolas, monospace" fill="#111827">predictions</text>
+<text x="408" y="1252" font-size="10.5" font-family="Consolas, monospace" fill="#111827">notifications</text>
+<text x="643" y="1252" font-size="10.5" font-family="Consolas, monospace" fill="#111827">platform_settings</text>
+<text x="878" y="1252" font-size="10.5" font-family="Consolas, monospace" fill="#111827">stocks / price_history</text>
+<rect x="1400" y="616" width="352" height="176" rx="6" fill="white" stroke="#111827" stroke-width="2" stroke-dasharray="8,5"/>
+<text x="1416" y="641" font-size="13" font-weight="bold" fill="#111827">EXTERNAL SERVICE</text>
+<rect x="1416" y="660" width="320" height="76" rx="4" fill="white" stroke="#111827" stroke-width="1.5"/>
+<text x="1576.0" y="679" font-size="11" font-weight="bold" text-anchor="middle" fill="#111827">Yahoo Finance  (yfinance)</text>
+<text x="1576.0" y="694" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">OHLCV history · live quotes</text>
+<text x="1576.0" y="707" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">news headlines · fundamentals</text>
+<text x="1576.0" y="720" font-size="9.5" text-anchor="middle" fill="#111827" opacity="0.85">the only third-party data source</text>
+<text x="1416" y="762" font-size="9.5" fill="#6B7280">No RSS pipeline and no paid market-data feed</text>
+<text x="1416" y="777" font-size="9.5" fill="#6B7280">are used, despite the proposal implying so.</text>
+<line x1="1400" y1="704" x2="1380" y2="704" stroke="#111827" stroke-width="2"/>
+<polygon points="1380,704 1390,698 1390,710" fill="#111827"/>
+<line x1="1380" y1="732" x2="1400" y2="732" stroke="#111827" stroke-width="2"/>
+<polygon points="1400,732 1390,726 1390,738" fill="#111827"/>
+<text x="1390" y="698" font-size="9.5" fill="#111827">HTTPS</text>
+<text x="56" y="1332" font-size="12.5" font-weight="bold" fill="#111827">Why the AI layer is drawn as a black box</text>
+<text x="56" y="1354" font-size="10.5" fill="#333">At architecture level the rest of the system depends only on the layer's contract, not on how a verdict is produced. Any model could be</text>
+<text x="56" y="1371" font-size="10.5" fill="#333">swapped behind that interface — a different classifier, a hosted API, a rules engine — without a single change above it. The decomposition</text>
+<text x="56" y="1388" font-size="10.5" fill="#333">of what happens inside is a lower-level concern and is documented in the Level 2 DFD (processes 3.3 to 3.7).</text>
+<text x="56" y="1405" font-size="10.5" fill="#333"></text>
+<text x="56" y="1422" font-size="10.5" fill="#333">Honest limitation to state in the report: the XGBoost model is trained per instrument. Cross-ticker generalisation was tested and failed</text>
+<text x="56" y="1439" font-size="10.5" fill="#333">(AUC ≈ 0.42), so the black box is not a single global predictor. The six-factor scoring model, not the classifier, drives the explainable verdict.</text>
+<rect x="56" y="1490" width="1696" height="40" rx="4" fill="none" stroke="#9CA3AF" stroke-width="1"/>
+<rect x="76" y="1502" width="24" height="16" rx="3" fill="#F3F4F6" stroke="#111827" stroke-width="1.4"/>
+<text x="109" y="1514" font-size="10.5" fill="#333">Layer / tier</text>
+<rect x="212.8" y="1502" width="24" height="16" rx="3" fill="white" stroke="#111827" stroke-width="1.4"/>
+<text x="245.8" y="1514" font-size="10.5" fill="#333">Component</text>
+<rect x="330.4" y="1502" width="24" height="16" rx="3" fill="#0B0F19" stroke="#111827" stroke-width="1.4"/>
+<text x="363.4" y="1514" font-size="10.5" fill="#333">Opaque (black box)</text>
+<line x1="515.5999999999999" y1="1510" x2="563.5999999999999" y2="1510" stroke="#111827" stroke-width="2" stroke-dasharray="7,5"/>
+<text x="573.5999999999999" y="1514" font-size="10.5" fill="#333">System boundary — everything inside the solid bands is built and deployed by the team</text>
+</svg>

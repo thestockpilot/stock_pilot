@@ -552,7 +552,11 @@ INPUT   strategyId, priceInCents, backtestMetrics, currentUser
 OUTPUT  listing status
 
 BEGIN
-    // 1. Ownership check - the WHERE clause includes the owner, so another
+    // 1. Role check - runs BEFORE any other work
+    REQUIRE currentUser.role IN {analyst, admin}
+        ELSE RETURN error 403 "insufficient permissions"
+
+    // 2. Ownership check - the WHERE clause includes the owner, so another
     //    user's strategy simply returns nothing (404, never revealing existence)
     strategy <- SELECT strategy WHERE id = strategyId AND ownerId = currentUser.id
     IF strategy is NULL THEN

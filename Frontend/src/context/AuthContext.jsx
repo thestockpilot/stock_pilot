@@ -45,8 +45,8 @@ export function AuthProvider({ children }) {
     return data;
   };
 
-  const register = async (full_name, email, password) => {
-    const { data } = await api.post('/api/v1/auth/register', { full_name, email, password });
+  const register = async (full_name, email, password, role = 'investor') => {
+    const { data } = await api.post('/api/v1/auth/register', { full_name, email, password, role });
     localStorage.setItem('sp_access_token', data.access_token);
     if (data.refresh_token) {
       localStorage.setItem('sp_refresh_token', data.refresh_token);

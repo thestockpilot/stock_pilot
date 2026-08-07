@@ -723,12 +723,17 @@ st.extend(flow("F-44","Auto-fill metrics by running a real backtest",
 
 st.extend(flow("F-45","Submit a publish request",
  [["Trigger","Publish dialog -> Submit for Review"],["Path","POST /api/v1/strategies/{id}/publish"],
-  ["Auth","Bearer (any authenticated user)"],["Tables","strategies, platform_settings, marketplace_listings"]],
-"""1  [UI]   Client-side gate: the button stays disabled until all five checks pass.
+  ["Auth","Bearer + role IN (analyst, admin)"],["Tables","strategies, platform_settings, marketplace_listings"]],
+"""0  [UI]   Role gate: investors never see this dialog. The Marketplace shows them a
+          disabled 'Analyst role required' card instead of the publish CTA.
+1  [UI]   Client-side gate: the button stays disabled until all five checks pass.
           trades >= min_trades ; win_rate >= min_winrate ; sharpe >= min_sharpe ;
           0 < drawdown <= max_drawdown ; profit_factor >= min_profit_factor
 2  [HTTP] POST body: price_cents (dollars*100), backtest_trades, backtest_winrate,
           backtest_sharpe, backtest_max_drawdown, backtest_profit_factor, backtest_return
+2a [AUTH] require_role(analyst, admin) runs BEFORE the handler.
+          An investor is rejected here with 403 "Insufficient permissions",
+          regardless of what the browser displays.                        [STOP]
 3  [DB]   SELECT * FROM strategies WHERE id = :id AND owner_id = :me
           - not found or not owned -> 404 "Strategy not found"  [STOP]
 4  [DB]   get_settings(db) -> the live thresholds (server-side re-validation; the client
@@ -750,7 +755,8 @@ st.extend(flow("F-45","Submit a publish request",
 10 [API]  Respond {"status":"review", "listing_id": "..."}
 11 [UI]   Dialog closes and the marketplace refetches - the strategy now shows 'In Review'.
 12        It is invisible to buyers until an administrator approves it (F-51).""",
- [["Any threshold not met","400 with a per-metric breakdown; no listing is created or modified"],
+ [["Investor attempts the call directly","403 Insufficient permissions &mdash; blocked before any database access"],
+  ["Any threshold not met","400 with a per-metric breakdown; no listing is created or modified"],
   ["Already in review / already verified","400; the existing listing is left untouched"]]))
 
 # ═══════════ I. NOTIFICATIONS ═══════════

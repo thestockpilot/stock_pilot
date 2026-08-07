@@ -43,6 +43,7 @@ dependencies = [
     "openpyxl>=3.1.5",
     "vectorbt>=0.26.2",
     "python-docx>=1.2.0",
+    "plantuml>=0.3.0",
 ]
 
 [project.optional-dependencies]

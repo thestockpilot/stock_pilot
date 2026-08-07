@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1180" viewBox="0 0 1500 1180" font-family="Helvetica, Arial, sans-serif">
+<rect width="1500" height="1180" fill="white"/>
+<text x="750.0" y="34" font-size="19" font-weight="bold" text-anchor="middle" fill="#111111">StockPilot — Normalisation of the Marketplace Listing Record (UNF → 3NF)</text>
+<text x="60" y="78" font-size="14" font-weight="bold" fill="#111111">Unnormalised (UNF)</text>
+<rect x="60" y="90" width="640" height="150" fill="white" stroke="#111111" stroke-width="1.8"/>
+<rect x="60" y="90" width="640" height="26" fill="#eeeeee" stroke="#111111" stroke-width="1.8"/>
+<text x="70" y="108" font-size="12" font-weight="bold" fill="#111111">STRATEGY_LISTING (repeating groups present)</text>
+<text x="70" y="135" font-size="10.5" fill="#111111">strategy_id</text>
+<line x1="70.0" y1="138" x2="128.8" y2="138" stroke="#111111" stroke-width="1"/>
+<text x="70" y="152" font-size="10.5" fill="#111111">name, description, weights</text>
+<text x="70" y="169" font-size="10.5" fill="#111111">owner_id, owner_name, owner_email</text>
+<text x="70" y="186" font-size="10.5" fill="#111111">price_cents, status, listed_at</text>
+<text x="70" y="203" font-size="10.5" fill="#111111">backtest_return, backtest_sharpe, backtest_winrate</text>
+<text x="70" y="220" font-size="10.5" fill="#111111">ratings  =  { user_id, rating, review }   &lt;-- repeating group</text>
+<text x="60" y="255" font-size="10" fill="#555">Violates 1NF: &#x27;ratings&#x27; holds multiple values in a single attribute.</text>
+<line x1="380" y1="262" x2="380" y2="292" stroke="#111111" stroke-width="1.6"/>
+<polygon points="380,300 375,290 385,290" fill="#111111"/>
+<text x="392" y="286" font-size="10.5" fill="#333">Remove the repeating group into its own relation</text>
+<text x="60" y="330" font-size="14" font-weight="bold" fill="#111111">First Normal Form (1NF)</text>
+<rect x="60" y="342" width="640" height="132" fill="white" stroke="#111111" stroke-width="1.8"/>
+<rect x="60" y="342" width="640" height="26" fill="#eeeeee" stroke="#111111" stroke-width="1.8"/>
+<text x="70" y="360" font-size="12" font-weight="bold" fill="#111111">STRATEGY_LISTING</text>
+<text x="70" y="387" font-size="10.5" fill="#111111">strategy_id</text>
+<line x1="70.0" y1="390" x2="128.8" y2="390" stroke="#111111" stroke-width="1"/>
+<text x="70" y="404" font-size="10.5" fill="#111111">name, description, weights</text>
+<text x="70" y="421" font-size="10.5" fill="#111111">owner_id, owner_name, owner_email</text>
+<text x="70" y="438" font-size="10.5" fill="#111111">price_cents, status, listed_at</text>
+<text x="70" y="455" font-size="10.5" fill="#111111">backtest_return, backtest_sharpe, backtest_winrate</text>
+<rect x="740" y="342" width="440" height="132" fill="white" stroke="#111111" stroke-width="1.8"/>
+<rect x="740" y="342" width="440" height="26" fill="#eeeeee" stroke="#111111" stroke-width="1.8"/>
+<text x="750" y="360" font-size="12" font-weight="bold" fill="#111111">LISTING_RATING</text>
+<text x="750" y="387" font-size="10.5" fill="#111111">listing_id, user_id   (composite key)</text>
+<line x1="750.0" y1="390" x2="803.5" y2="390" stroke="#111111" stroke-width="1"/>
+<line x1="814.2" y1="390" x2="851.7" y2="390" stroke="#111111" stroke-width="1"/>
+<text x="750" y="404" font-size="10.5" fill="#111111">rating</text>
+<text x="750" y="421" font-size="10.5" fill="#111111">review</text>
+<text x="750" y="438" font-size="10.5" fill="#111111">created_at</text>
+<text x="740" y="489" font-size="10" fill="#555">All attributes are now atomic.</text>
+<line x1="380" y1="496" x2="380" y2="526" stroke="#111111" stroke-width="1.6"/>
+<polygon points="380,534 375,524 385,524" fill="#111111"/>
+<text x="392" y="520" font-size="10.5" fill="#333">Remove partial dependency on part of the composite key</text>
+<text x="60" y="564" font-size="14" font-weight="bold" fill="#111111">Second Normal Form (2NF)</text>
+<rect x="60" y="576" width="640" height="132" fill="white" stroke="#111111" stroke-width="1.8"/>
+<rect x="60" y="576" width="640" height="26" fill="#eeeeee" stroke="#111111" stroke-width="1.8"/>
+<text x="70" y="594" font-size="12" font-weight="bold" fill="#111111">STRATEGY_LISTING</text>
+<text x="70" y="621" font-size="10.5" fill="#111111">strategy_id</text>
+<line x1="70.0" y1="624" x2="128.8" y2="624" stroke="#111111" stroke-width="1"/>
+<text x="70" y="638" font-size="10.5" fill="#111111">name, description, weights</text>
+<text x="70" y="655" font-size="10.5" fill="#111111">owner_id, owner_name, owner_email</text>
+<text x="70" y="672" font-size="10.5" fill="#111111">price_cents, status, listed_at</text>
+<text x="70" y="689" font-size="10.5" fill="#111111">backtest_return, backtest_sharpe, backtest_winrate</text>
+<rect x="740" y="576" width="440" height="132" fill="white" stroke="#111111" stroke-width="1.8"/>
+<rect x="740" y="576" width="440" height="26" fill="#eeeeee" stroke="#111111" stroke-width="1.8"/>
+<text x="750" y="594" font-size="12" font-weight="bold" fill="#111111">MARKETPLACE_RATING</text>
+<text x="750" y="621" font-size="10.5" fill="#111111">rating_id   (surrogate key)</text>
+<line x1="750.0" y1="624" x2="798.1" y2="624" stroke="#111111" stroke-width="1"/>
+<text x="750" y="638" font-size="10.5" fill="#111111">listing_id  (FK)</text>
+<text x="750" y="655" font-size="10.5" fill="#111111">user_id  (FK)</text>
+<text x="750" y="672" font-size="10.5" fill="#111111">rating, review, created_at</text>
+<text x="740" y="723" font-size="10" fill="#555">A surrogate key removes the partial dependency.</text>
+<line x1="380" y1="730" x2="380" y2="760" stroke="#111111" stroke-width="1.6"/>
+<polygon points="380,768 375,758 385,758" fill="#111111"/>
+<text x="392" y="754" font-size="10.5" fill="#333">Remove transitive dependency: owner_name/email depend on owner_id, not the key</text>
+<text x="60" y="800" font-size="14" font-weight="bold" fill="#111111">Third Normal Form (3NF) — the implemented schema</text>
+<rect x="60" y="812" width="400" height="152" fill="white" stroke="#111111" stroke-width="1.8"/>
+<rect x="60" y="812" width="400" height="26" fill="#eeeeee" stroke="#111111" stroke-width="1.8"/>
+<text x="70" y="830" font-size="12" font-weight="bold" fill="#111111">STRATEGY</text>
+<text x="70" y="857" font-size="10.5" fill="#111111">strategy_id</text>
+<line x1="70.0" y1="860" x2="128.8" y2="860" stroke="#111111" stroke-width="1"/>
+<text x="70" y="874" font-size="10.5" fill="#111111">owner_id  (FK -&gt; USER)</text>
+<text x="70" y="891" font-size="10.5" fill="#111111">name</text>
+<text x="70" y="908" font-size="10.5" fill="#111111">description</text>
+<text x="70" y="925" font-size="10.5" fill="#111111">weights (JSONB)</text>
+<text x="70" y="942" font-size="10.5" fill="#111111">is_preset, is_published</text>
+<rect x="500" y="812" width="400" height="152" fill="white" stroke="#111111" stroke-width="1.8"/>
+<rect x="500" y="812" width="400" height="26" fill="#eeeeee" stroke="#111111" stroke-width="1.8"/>
+<text x="510" y="830" font-size="12" font-weight="bold" fill="#111111">MARKETPLACE_LISTING</text>
+<text x="510" y="857" font-size="10.5" fill="#111111">listing_id</text>
+<line x1="510.0" y1="860" x2="563.5" y2="860" stroke="#111111" stroke-width="1"/>
+<text x="510" y="874" font-size="10.5" fill="#111111">strategy_id  (FK, UNIQUE)</text>
+<text x="510" y="891" font-size="10.5" fill="#111111">price_cents, status, listed_at</text>
+<text x="510" y="908" font-size="10.5" fill="#111111">avg_rating, rating_count, sales_count</text>
+<text x="510" y="925" font-size="10.5" fill="#111111">backtest_return / sharpe / winrate /</text>
+<text x="510" y="942" font-size="10.5" fill="#111111">  trades / max_drawdown / profit_factor</text>
+<rect x="940" y="812" width="240" height="152" fill="white" stroke="#111111" stroke-width="1.8"/>
+<rect x="940" y="812" width="240" height="26" fill="#eeeeee" stroke="#111111" stroke-width="1.8"/>
+<text x="950" y="830" font-size="12" font-weight="bold" fill="#111111">USER</text>
+<text x="950" y="857" font-size="10.5" fill="#111111">user_id</text>
+<line x1="950.0" y1="860" x2="987.5" y2="860" stroke="#111111" stroke-width="1"/>
+<text x="950" y="874" font-size="10.5" fill="#111111">email</text>
+<text x="950" y="891" font-size="10.5" fill="#111111">full_name</text>
+<text x="950" y="908" font-size="10.5" fill="#111111">role</text>
+<text x="950" y="925" font-size="10.5" fill="#111111">is_active</text>
+<rect x="1220" y="812" width="240" height="152" fill="white" stroke="#111111" stroke-width="1.8"/>
+<rect x="1220" y="812" width="240" height="26" fill="#eeeeee" stroke="#111111" stroke-width="1.8"/>
+<text x="1230" y="830" font-size="12" font-weight="bold" fill="#111111">MARKETPLACE_RATING</text>
+<text x="1230" y="857" font-size="10.5" fill="#111111">rating_id</text>
+<line x1="1230.0" y1="860" x2="1278.2" y2="860" stroke="#111111" stroke-width="1"/>
+<text x="1230" y="874" font-size="10.5" fill="#111111">listing_id (FK)</text>
+<text x="1230" y="891" font-size="10.5" fill="#111111">user_id (FK)</text>
+<text x="1230" y="908" font-size="10.5" fill="#111111">rating</text>
+<text x="1230" y="925" font-size="10.5" fill="#111111">review</text>
+<text x="60" y="985" font-size="11.5" font-weight="bold" fill="#111111">Result</text>
+<text x="60" y="1006" font-size="10.5" fill="#333">Every non-key attribute depends on the key, the whole key, and nothing but the key.</text>
+<text x="60" y="1024" font-size="10.5" fill="#333">owner_name and owner_email were transitively dependent on owner_id; they now live only in USER.</text>
+<text x="60" y="1042" font-size="10.5" fill="#333">avg_rating and rating_count are retained on the listing as derived (denormalised) values, maintained by the</text>
+<text x="60" y="1060" font-size="10.5" fill="#333">application to avoid recomputing an aggregate over MARKETPLACE_RATING on every marketplace page load.</text>
+</svg>

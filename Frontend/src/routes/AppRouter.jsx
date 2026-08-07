@@ -5,7 +5,8 @@ import Layout from '../components/layout/Layout';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 
 const AuthPage = lazy(() => import('../components/auth/AuthPage'));
-const Dashboard = lazy(() => import('../components/dashboard/Dashboard'));
+// Picks the investor / analyst / admin dashboard based on the signed-in role.
+const Dashboard = lazy(() => import('../components/dashboard/RoleDashboard'));
 const Advisor = lazy(() => import('../components/advisor/Advisor'));
 const Marketplace = lazy(() => import('../components/marketplace/Marketplace'));
 const Portfolio = lazy(() => import('../components/portfolio/Portfolio'));
