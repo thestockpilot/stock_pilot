@@ -23,7 +23,7 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from app.services.market_data.fetcher import DataFetcher
-from backend.app.services.indicators.featureEngine import FeatureEngine
+from app.services.indicators.featureEngine import FeatureEngine
 
 
 # ============================================================
@@ -441,3 +441,8 @@ if __name__ == "__main__":
     print("  ✅ FeatureEngine class is ready for production")
     print("  ✅ All 33+ features working correctly")
     print("  ✅ Data validation, error handling, and logging all working")
+
+# Marks every test in this module as network-dependent (hits yfinance);
+# the CI workflow runs `pytest -m "not network"` so these are skipped there.
+import pytest
+pytestmark = pytest.mark.network

@@ -53,3 +53,8 @@ def test_fetcher():
 
 if __name__ == "__main__":
     test_fetcher()
+
+# Marks every test in this module as network-dependent (hits yfinance);
+# the CI workflow runs `pytest -m "not network"` so these are skipped there.
+import pytest
+pytestmark = pytest.mark.network
