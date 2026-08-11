@@ -278,3 +278,8 @@ class TestEdgeCases:
             check_exact=False,
             rtol=1e-10,
         )
+
+# Marks every test in this module as network-dependent (hits yfinance);
+# the CI workflow runs `pytest -m "not network"` so these are skipped there.
+import pytest
+pytestmark = pytest.mark.network
