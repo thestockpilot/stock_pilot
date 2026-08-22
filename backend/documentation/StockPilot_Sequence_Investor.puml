@@ -26,13 +26,16 @@ Router -> DB : SELECT user WHERE email = ?
 DB --> Router : user record
 alt invalid credentials
     Router --> API : 401 Invalid email or password
+    API --> UI : error
+    UI --> Investor : show error message
 else valid
     Router -> Router : verify bcrypt hash
     Router -> Router : issue access + refresh JWT
     Router --> API : 200 {tokens, user}
+    API -> API : store tokens in localStorage
+    API --> UI : authenticated
+    UI --> Investor : redirect to Investor Dashboard
 end
-API -> UI : store tokens in localStorage
-UI --> Investor : redirect to Investor Dashboard
 
 == 2. Explainable AI verdict (six-factor) ==
 
@@ -41,6 +44,7 @@ UI -> API : GET /analysis/{ticker}/factors?w_*
 API -> Router : request + Bearer token
 Router -> Auth : authenticate
 Auth -> DB : SELECT user WHERE id = sub
+DB --> Auth : user
 Auth --> Router : authenticated user
 Router -> Analysis : compute factor scores
 
@@ -60,13 +64,15 @@ Analysis -> Analysis : score 6 factors, apply weights
 Analysis -> Analysis : composite -> BUY / HOLD / SELL + confidence
 Analysis --> Router : verdict + per-factor breakdown
 Router --> API : 200 factors response
-API --> UI : render verdict card and factor bars
+API --> UI : factors response
+UI -> UI : render verdict card and factor bars
 UI --> Investor : explainable recommendation
 
 == 3. Live model prediction (XGBoost) ==
 
+Investor -> UI : (verdict shown, request live prediction)
 UI -> API : GET /predictions/{ticker}/live
-API -> Router : request
+API -> Router : request + Bearer token
 Router -> Model : predict(ticker)
 opt model not loaded
     Model -> Model : load model.pkl (once per process)
@@ -79,42 +85,53 @@ Model --> Router : signal, confidence, probabilities
 Router -> DB : INSERT INTO predictions
 DB --> Router : persisted row
 Router --> API : 200 prediction
-API --> UI : show verdict + MODEL LIVE badge
+API --> UI : prediction
+UI -> UI : show verdict + MODEL LIVE badge
+UI --> Investor : live recommendation
 
 == 4. Backtest a strategy ==
 
 Investor -> UI : choose period, click Run Backtest
 UI -> API : GET /analysis/{ticker}/backtest
-API -> Router : request
+API -> Router : request + Bearer token
 Router -> Analysis : run simulation
 Analysis -> YF : fetch historical OHLCV
 YF --> Analysis : price data
 
 alt fewer than 60 rows
     Analysis --> Router : 400 Insufficient data
+    Router --> API : 400 Insufficient data
+    API --> UI : error
+    UI --> Investor : show "not enough data"
 else sufficient data
     Analysis -> Analysis : composite score for every day
     Analysis -> Analysis : derive entry / exit signals
     Analysis -> Analysis : simulate portfolio (vectorbt)\nfees 0.1%, slippage 0.05%, trailing stop
     Analysis --> Router : metrics + equity curve + trade ledger
+    Router --> API : 200 backtest result
+    API --> UI : backtest result
+    UI -> UI : render statistics and chart
+    UI --> Investor : backtest report
 end
-Router --> API : 200 backtest result
-API --> UI : render statistics and chart
+
 Investor -> UI : Download log
-UI --> Investor : CSV of every trade (generated in browser)
+UI -> UI : generate CSV of every trade (in browser)
+UI --> Investor : download CSV
 
 == 5. Manage portfolio ==
 
 Investor -> UI : add holding (ticker, quantity, cost)
 UI -> API : POST /portfolio
-API -> Router : request
+API -> Router : request + Bearer token
 Router -> Auth : authenticate
+Auth --> Router : authenticated user
 Router -> YF : look up current price
 YF --> Router : live price
 Router -> DB : INSERT INTO holdings
 DB --> Router : created holding
 Router --> API : 201 Created
-API --> UI : refresh list
+API --> UI : created holding
+UI -> UI : refresh list
 UI --> Investor : updated valuation and profit / loss
 
 note over Investor, DB

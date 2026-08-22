@@ -252,13 +252,11 @@ class DataFetcher:
         tickers = {file.stem.split("_", maxsplit=1)[0] for file in self.data_path.glob("*.csv")}
         return sorted(tickers)
 
-    def get_data_summary(self, ticker: str) -> dict:
-        """Return a small dictionary describing the stored data for ``ticker``."""
+    def get_data_summary(self, ticker: str, period: Optional[str] = None, interval: Optional[str] = None) -> dict:
         try:
-            data = self.load_from_csv(ticker)
+            data = self.load_from_csv(ticker, period=period, interval=interval)
         except FileNotFoundError:
             return {"ticker": ticker, "error": "no data found"}
-
         return {
             "ticker": ticker,
             "rows": len(data),
@@ -277,19 +275,20 @@ class DataFetcher:
 #     logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(levelname)-7s  %(message)s")
 
 #     fetcher = DataFetcher()
-#     print("fetching AAPL / 1mo …")
-#     df = fetcher.fetch_historical("AAPL", period="1mo")
+#     print("fetching AAPL / 6mo …")
+#     df = fetcher.fetch_historical("AAPL", period="6mo")
 #     print(f"  → {len(df)} rows, columns: {list(df.columns)}")
 
 #     print("saving …")
-#     path = fetcher.save_to_csv(df, "AAPL", period="1mo")
+#     path = fetcher.save_to_csv(df, "AAPL", period="6mo")
 #     print(f"  → {path}")
 
 #     print("loading back …")
-#     df2 = fetcher.load_from_csv("AAPL", period="1mo")
+#     df2 = fetcher.load_from_csv("AAPL", period="6mo")
 #     print(f"  → {len(df2)} rows")
 
-#     print("summary:", fetcher.get_data_summary("AAPL"))
+#     print("summary:",     fetcher.get_data_summary("AAPL", period="6mo")
+# )
 
 
 # if __name__ == "__main__":

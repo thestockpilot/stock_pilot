@@ -36,7 +36,9 @@ Auth --> Router : authenticated analyst
 Router -> DB : INSERT INTO strategies\n(owner_id = analyst, weights JSONB)
 DB --> Router : created strategy
 Router --> API : 201 Created
-API --> UI : strategy appears in "My strategies"
+API --> UI : created strategy
+UI -> UI : add to "My strategies"
+UI --> Analyst : strategy saved
 
 == 2. Validate the strategy with a backtest ==
 
@@ -50,7 +52,8 @@ Analysis -> Analysis : composite signal per day
 Analysis -> Analysis : simulate portfolio (vectorbt)
 Analysis --> Router : trades, win rate, Sharpe,\ndrawdown, profit factor, return
 Router --> API : 200 metrics
-API --> UI : auto-fill the six metric fields
+API --> UI : metrics
+UI -> UI : auto-fill the six metric fields
 UI -> UI : evaluate each metric against thresholds
 UI --> Analyst : per-threshold pass / fail checklist
 
@@ -95,7 +98,8 @@ else caller is analyst or admin
         end
     end
 end
-API --> UI : close dialog, refresh marketplace
+API --> UI : publish response
+UI -> UI : close dialog, refresh marketplace
 UI --> Analyst : strategy shows "In Review"
 
 == 4. Await administrator decision ==

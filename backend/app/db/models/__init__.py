@@ -8,6 +8,7 @@ from app.db.models.strategy     import Strategy
 from app.db.models.marketplace  import MarketplaceListing, MarketplaceRating, ListingStatus
 from app.db.models.notification import Notification, NotificationKind
 from app.db.models.settings     import PlatformSettings
+from app.db.models.role_profiles import InvestorProfile, AnalystProfile, AdminProfile
 
 __all__ = [
     "User", "UserRole",
@@ -20,4 +21,5 @@ __all__ = [
     "MarketplaceListing", "MarketplaceRating", "ListingStatus",
     "Notification", "NotificationKind",
     "PlatformSettings",
+    "InvestorProfile", "AnalystProfile", "AdminProfile",
 ]

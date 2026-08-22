@@ -2,10 +2,13 @@ import uuid
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete
 from sqlalchemy.orm import selectinload
 from app.db.session import get_db
 from app.db.models.user import User, UserRole
+from app.db.models.role_profiles import (
+    InvestorProfile, AnalystProfile, AdminProfile, profile_for,
+)
 from app.db.models.strategy import Strategy
 from app.db.models.marketplace import MarketplaceListing, ListingStatus
 from app.db.models.settings import get_settings, thresholds_dict
@@ -166,7 +169,13 @@ async def update_user_role(
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    user.role = new_role
+    if new_role != user.role:
+        # move the 1:1 subtype row to the table for the new role
+        for model in (InvestorProfile, AnalystProfile, AdminProfile):
+            await db.execute(delete(model).where(model.user_id == user.id))
+        user.role = new_role
+        await db.flush()
+        db.add(profile_for(new_role, user.id))
     await db.flush()
     return {"id": str(user.id), "role": user.role.value}
 

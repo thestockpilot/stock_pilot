@@ -42,7 +42,8 @@ API -> Router : request
 Router -> DB : SELECT listings WHERE status = 'review'\n(eager load strategy + owner)
 DB --> Router : pending listings
 Router --> API : 200 listings with backtest reports
-API --> UI : render stats and review queue
+API --> UI : stats + pending listings
+UI -> UI : render stats and review queue
 UI --> Admin : platform overview
 
 == 2. Review and approve a submitted strategy ==
@@ -66,21 +67,32 @@ else status is 'review'
     Router --> API : 200 verified
     note right of DB : listing becomes\npublicly visible
 end
-API --> UI : refresh admin data
+API --> UI : approve response
+UI -> UI : refresh admin data
 
-alt administrator rejects instead
+opt administrator rejects instead
     Admin -> UI : Reject
     UI -> API : POST /admin/listings/{id}/reject
+    API -> Router : request + Bearer token
+    Router -> Auth : require_role(admin)
+    Auth --> Router : authorised
     Router -> DB : status = 'removed'\nstrategy.is_published = false
+    DB --> Router : committed
     Router --> API : 200 removed
+    API --> UI : rejected
 end
 
-alt remove an already-live listing
+opt remove an already-live listing
     Admin -> UI : Remove
     UI -> API : POST /admin/listings/{id}/remove
+    API -> Router : request + Bearer token
+    Router -> Auth : require_role(admin)
+    Auth --> Router : authorised
     note right of Router : no status guard -\nworks from any state
     Router -> DB : status = 'removed'
+    DB --> Router : committed
     Router --> API : 200 removed
+    API --> UI : removed
 end
 
 == 3. Manage a user account ==
@@ -104,9 +116,13 @@ end
 
 Admin -> UI : suspend a user
 UI -> API : PATCH /admin/users/{id}/status
+API -> Router : request + Bearer token
+Router -> Auth : require_role(admin)
+Auth --> Router : authorised
 Router -> DB : is_active = NOT is_active
 DB --> Router : committed
 Router --> API : 200 status toggled
+API --> UI : status toggled
 
 User -> Router : any subsequent request
 Router -> Auth : authenticate
@@ -130,7 +146,8 @@ else all values valid
     DB --> Router : committed
     Router --> API : 200 updated thresholds
 end
-API --> UI : confirmation
+API --> UI : threshold response
+UI --> Admin : confirmation
 
 note over Router, DB
   Effect is immediate and global, with no redeploy:
