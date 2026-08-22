@@ -17,6 +17,10 @@ async def get_current_user(
     payload = decode_token(creds.credentials)
     if payload is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    # Reject anything that is not an access token — a refresh token (type
+    # "refresh") must never authenticate a request to a protected endpoint.
+    if payload.get("type") != "access":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type")
     try:
         user_id = uuid.UUID(payload["sub"])
     except (KeyError, ValueError):

@@ -32,3 +32,8 @@ class User(Base):
     trades        = relationship("Trade",        back_populates="user", cascade="all, delete-orphan")
     strategies    = relationship("Strategy",     back_populates="owner", cascade="all, delete-orphan")
     notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
+
+    # 1:1 role subtype rows (joined-table inheritance); exactly one is populated
+    investor_profile = relationship("InvestorProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    analyst_profile  = relationship("AnalystProfile",  back_populates="user", uselist=False, cascade="all, delete-orphan")
+    admin_profile    = relationship("AdminProfile",    back_populates="user", uselist=False, cascade="all, delete-orphan")

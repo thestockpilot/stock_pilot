@@ -1,0 +1,14 @@
+============================= test session starts =============================
+platform win32 -- Python 3.12.13, pytest-9.1.1, pluggy-1.6.0 -- C:\Users\Pasindu\Desktop\stock pilot\backend\.venv\Scripts\python.exe
+rootdir: C:\Users\Pasindu\Desktop\stock pilot
+plugins: anyio-4.14.1, asyncio-1.4.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 7 items
+..\AI_Test_Plan\test_ai_layer.py::test_datafetcher_returns_valid_ohlcv PASSED [ 14%]
+..\AI_Test_Plan\test_ai_layer.py::test_featureengine_produces_indicators PASSED [ 28%]
+..\AI_Test_Plan\test_ai_layer.py::test_prepare_data_labels_are_binary PASSED [ 42%]
+..\AI_Test_Plan\test_ai_layer.py::test_predict_output_contract PASSED    [ 57%]
+..\AI_Test_Plan\test_ai_layer.py::test_walk_forward_metrics_valid PASSED [ 71%]
+..\AI_Test_Plan\test_ai_layer.py::test_backtest_report_contract PASSED   [ 85%]
+..\AI_Test_Plan\test_ai_layer.py::test_hold_band_configuration PASSED    [100%]
+============================= 7 passed in 11.52s ==============================

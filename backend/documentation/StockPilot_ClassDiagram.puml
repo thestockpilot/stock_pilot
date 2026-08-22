@@ -318,24 +318,37 @@ class WalkForwardReport <<dataclass>> {
 }
 
 '=========================================================
-' ASSOCIATIONS - user owned data
+' COMPOSITIONS - user-owned data
+'   These entities have a single non-null owner FK and are
+'   cascade-deleted with the user (delete-orphan), so their
+'   lifecycle is bound to the User: composition (filled diamond).
 '=========================================================
 
-User "1" -- "0..*" Holding : owns >
-User "1" -- "0..*" Watchlist : monitors >
-User "1" -- "0..*" Trade : logs >
-User "1" -- "0..*" Strategy : creates >
-User "1" -- "0..*" Notification : receives >
-User "1" -- "0..*" MarketplaceRating : writes >
+User "1" *-- "0..*" Holding : owns >
+User "1" *-- "0..*" Watchlist : monitors >
+User "1" *-- "0..*" Trade : logs >
+User "1" *-- "0..*" Notification : receives >
+
+'=========================================================
+' AGGREGATION - strategies
+'   A preset strategy has NO owner (owner_id nullable), so a
+'   Strategy can exist without a User: aggregation, owner 0..1.
+'=========================================================
+
+User "0..1" o-- "0..*" Strategy : creates >
 
 '=========================================================
 ' ASSOCIATIONS - marketplace
-'   A listing cannot exist without its strategy (FK RESTRICT)
-'   therefore composition is used.
+'   MarketplaceRating is an association class resolving the
+'   many-to-many between User and MarketplaceListing, so it is
+'   linked by plain associations rather than composition.
+'   A listing cannot exist without its strategy (FK RESTRICT),
+'   therefore Strategy--Listing is a composition.
 '=========================================================
 
 Strategy "1" *-- "0..1" MarketplaceListing : published as >
 MarketplaceListing "1" -- "0..*" MarketplaceRating : receives >
+User "1" -- "0..*" MarketplaceRating : writes >
 
 '=========================================================
 ' LOGICAL LINKS (no foreign key)
@@ -347,6 +360,7 @@ Stock .. PriceHistory : linked by ticker >
 Stock .. Prediction : linked by ticker >
 Stock .. Holding : linked by ticker >
 Stock .. Watchlist : linked by ticker >
+Stock .. Trade : linked by ticker >
 
 '=========================================================
 ' ENUM USAGE

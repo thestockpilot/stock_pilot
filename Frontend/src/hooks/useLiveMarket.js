@@ -117,7 +117,7 @@ function _isAbort(e) {
   return e?.code === 'ERR_CANCELED' || e?.name === 'AbortError';
 }
 
-export function useFactorAnalysis(ticker, weights, pollMs = 0) {
+export function useFactorAnalysis(ticker, pollMs = 0) {
   const [analysis, setAnalysis] = useState(null);
   const [loading, setLoading] = useState(false);
   const intervalRef = useRef(null);
@@ -126,15 +126,10 @@ export function useFactorAnalysis(ticker, weights, pollMs = 0) {
     if (!ticker) return;
     setLoading(true);
     try {
+      // The per-factor scores depend only on the ticker; the factor weights
+      // are applied client-side (see Advisor), so moving the weight sliders is
+      // instant and needs no API call. We therefore fetch once per ticker.
       const { data } = await api.get(`/api/v1/analysis/${ticker}/factors`, {
-        params: {
-          w_sentiment: weights.sentiment,
-          w_momentum: weights.momentum,
-          w_valuation: weights.valuation,
-          w_volatility: weights.volatility,
-          w_volume: weights.volume,
-          w_growth: weights.growth,
-        },
         ...(signal ? { signal } : {}),
       });
       setAnalysis(data);
@@ -143,7 +138,7 @@ export function useFactorAnalysis(ticker, weights, pollMs = 0) {
     } finally {
       setLoading(false);
     }
-  }, [ticker, weights.sentiment, weights.momentum, weights.valuation, weights.volatility, weights.volume, weights.growth]);
+  }, [ticker]);
 
   useEffect(() => {
     const c = new AbortController();

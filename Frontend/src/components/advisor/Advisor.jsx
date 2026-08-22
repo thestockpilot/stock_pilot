@@ -176,7 +176,7 @@ export default function Advisor() {
   const live = marketStatus.is_open;
   const { quote, loading: quoteLoading } = useLiveQuote(ticker, live ? 2000 : 60000);
   const { data: chartData, loading: chartLoading } = useChartData(ticker, chartTimeframe.period, chartTimeframe.interval, live);
-  const { analysis, loading: factorsLoading } = useFactorAnalysis(ticker, weights, live ? 60000 : 0);
+  const { analysis, loading: factorsLoading } = useFactorAnalysis(ticker, live ? 60000 : 0);
   const { backtest, loading: btLoading, refetch: runBacktest } = useBacktest(ticker, backtestPeriod, weights, profile.risk, profile.horizon, 0);
   const { data: bullBear, loading: bbLoading } = useBullBear(ticker, live ? 120000 : 0);
   const { fundamentals, loading: fundLoading } = useFundamentals(ticker, live ? 120000 : 0);
@@ -241,7 +241,15 @@ export default function Advisor() {
   const shares = price > 0 ? Math.floor(dollars / price) : 0;
   const rr = price > stop ? ((target - price) / (price - stop)) : 0;
 
-  const compositeScore = analysis?.composite_score || 50;
+  // Composite is re-weighted client-side from the per-factor scores, so moving
+  // the weight sliders updates the verdict instantly with no API call. This
+  // mirrors the backend formula: composite = Σ(score_i · weight_i) / Σ(weights).
+  const compositeScore = useMemo(() => {
+    if (!analysis?.factors?.length) return analysis?.composite_score ?? 50;
+    const total = Object.values(weights).reduce((a, b) => a + b, 0) || 1;
+    return analysis.factors.reduce(
+      (sum, f) => sum + f.score * ((weights[f.key] || 0) / total), 0);
+  }, [analysis, weights]);
 
   return (
     <div className="view-enter">
