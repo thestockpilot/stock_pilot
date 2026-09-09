@@ -40,15 +40,19 @@ async def seed():
         await db.flush()
         user_id = demo_user.id
 
-        # ── Admin user ──
-        admin_user = User(
-            email="admin@stockpilot.io",
-            password_hash=hash_password("admin1234"),
-            full_name="Admin User",
-            role=UserRole.admin,
-        )
-        db.add(admin_user)
-        await db.flush()
+        from app.db.models.admin import Admin
+        from sqlalchemy import select as _select
+        existing_admin = (await db.execute(
+            _select(Admin).where(Admin.email == "admin@stockpilot.io")
+        )).scalar_one_or_none()
+        if existing_admin is None:
+            db.add(Admin(
+                email="admin@stockpilot.io",
+                password_hash=hash_password("admin1234"),
+                full_name="Admin User",
+                is_super=True,
+            ))
+            await db.flush()
 
         # ── Analyst users ──
         analysts = {}

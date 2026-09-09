@@ -18,7 +18,7 @@ from sqlalchemy import select
 from app.db.session import get_db
 from app.db.models.prediction import Prediction, SignalType
 from app.schemas.prediction import PredictionOut
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_principal
 from app.services.recommendation.engine import StockPredictor
 
 logger = logging.getLogger(__name__)
@@ -46,7 +46,7 @@ def _get_predictor() -> StockPredictor:
 
 
 @router.get("", response_model=list[PredictionOut])
-async def list_predictions(db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def list_predictions(db: AsyncSession = Depends(get_db), _=Depends(get_current_principal)):
     result = await db.execute(select(Prediction).order_by(Prediction.created_at.desc()))
     return result.scalars().all()
 
@@ -56,7 +56,7 @@ async def get_live_prediction(
     ticker: str,
     persist: bool = Query(default=True, description="Store the result in the predictions table"),
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_user),
+    _=Depends(get_current_principal),
 ):
     """Generate a fresh signal for ``ticker`` with the trained XGBoost model.
 
@@ -105,7 +105,7 @@ async def get_live_prediction(
 
 
 @router.get("/{ticker}", response_model=PredictionOut)
-async def get_prediction(ticker: str, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def get_prediction(ticker: str, db: AsyncSession = Depends(get_db), _=Depends(get_current_principal)):
     result = await db.execute(
         select(Prediction)
         .where(Prediction.ticker == ticker.upper())

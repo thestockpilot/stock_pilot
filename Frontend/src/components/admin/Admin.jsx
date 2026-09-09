@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../../api/client';
+import { setCache } from '../../api/cache';
 
 const FACTORS = [
   { key: 'sentiment', label: 'Sentiment' },
@@ -485,6 +486,7 @@ function ThresholdsEditor({ initial, onSaved }) {
       const payload = {};
       THRESHOLD_FIELDS.forEach((fl) => { payload[fl.key] = fl.fromDisplay(form[fl.key]); });
       await api.put('/api/v1/admin/thresholds', payload);
+      setCache('thresholds', payload);
       setMsg({ type: 'ok', text: 'Thresholds updated. New submissions are validated against these values.' });
       if (onSaved) await onSaved();
     } catch (err) {

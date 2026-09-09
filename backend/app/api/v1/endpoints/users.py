@@ -1,11 +1,10 @@
-import uuid as uuid_mod
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.db.models.user import User
-from app.schemas.user import UserOut, UserUpdate, PasswordUpdate
-from app.core.dependencies import get_current_user
+from app.schemas.user import UserOut, UserUpdate, PasswordUpdate, principal_out
+from app.core.dependencies import get_current_user, get_current_principal
 from app.core.security import verify_password, hash_password
 
 UPLOAD_DIR = Path(__file__).resolve().parents[4] / "uploads" / "avatars"
@@ -17,9 +16,9 @@ MAX_SIZE = 2 * 1024 * 1024  # 2 MB
 router = APIRouter(prefix="/users", tags=["users"])
 
 
-@router.get("/me", response_model=UserOut)
-async def get_me(user: User = Depends(get_current_user)):
-    return user
+@router.get("/me")
+async def get_me(principal = Depends(get_current_principal)):
+    return principal_out(principal)
 
 
 @router.put("/me", response_model=UserOut)

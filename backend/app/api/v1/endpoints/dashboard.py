@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, get_current_principal
 from app.db.models.portfolio import Holding
 from app.db.models.stock import Stock
 from app.db.models.trade import Trade
@@ -45,7 +45,7 @@ INDEX_TICKERS = [
 
 
 @router.get("/market-indices")
-async def get_market_indices(_=Depends(get_current_user)):
+async def get_market_indices(_=Depends(get_current_principal)):
     now = time.time()
     if _indices_cache["data"] and (now - _indices_cache["ts"]) < INDICES_TTL:
         return _indices_cache["data"]
@@ -158,13 +158,13 @@ async def get_portfolio_history(
 @router.get("/batch")
 async def get_dashboard_batch(
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    principal = Depends(get_current_principal),
 ):
-    """Single call returning all dashboard data — replaces 3 separate requests."""
+    """Single call returning all dashboard data."""
     import asyncio
-    indices_task = get_market_indices(user)
-    sector_task = get_sector_breakdown(db=db, user=user)
-    history_task = get_portfolio_history(db=db, user=user)
+    indices_task = get_market_indices(principal)
+    sector_task = get_sector_breakdown(db=db, user=principal)
+    history_task = get_portfolio_history(db=db, user=principal)
     indices, sectors, history = await asyncio.gather(
         indices_task, sector_task, history_task
     )

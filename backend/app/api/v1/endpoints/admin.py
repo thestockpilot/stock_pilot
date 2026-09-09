@@ -7,16 +7,18 @@ from sqlalchemy.orm import selectinload
 from app.db.session import get_db
 from app.db.models.user import User, UserRole
 from app.db.models.role_profiles import (
-    InvestorProfile, AnalystProfile, AdminProfile, profile_for,
+    InvestorProfile, AnalystProfile, profile_for,
 )
 from app.db.models.strategy import Strategy
 from app.db.models.marketplace import MarketplaceListing, ListingStatus
 from app.db.models.settings import get_settings, thresholds_dict
-from app.core.dependencies import require_role
+from app.db.models.notification import NotificationKind
+from app.core.dependencies import get_current_admin
+from app.core.notify import notify
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
-require_admin = require_role(UserRole.admin)
+require_admin = get_current_admin
 
 
 @router.get("/thresholds")
@@ -157,25 +159,30 @@ async def update_user_role(
     user_id: uuid.UUID,
     role: str,
     db: AsyncSession = Depends(get_db),
-    admin: User = Depends(require_admin),
+    admin = Depends(require_admin),
 ):
-    if user_id == admin.id:
-        raise HTTPException(status_code=400, detail="Cannot change your own role")
     try:
         new_role = UserRole(role)
     except ValueError:
         raise HTTPException(status_code=400, detail=f"Invalid role: {role}")
+    if new_role == UserRole.admin:
+        raise HTTPException(status_code=400, detail="Administrators are managed separately and cannot be assigned here")
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     if new_role != user.role:
         # move the 1:1 subtype row to the table for the new role
-        for model in (InvestorProfile, AnalystProfile, AdminProfile):
+        for model in (InvestorProfile, AnalystProfile):
             await db.execute(delete(model).where(model.user_id == user.id))
         user.role = new_role
         await db.flush()
-        db.add(profile_for(new_role, user.id))
+        profile = profile_for(new_role, user.id)
+        if profile is not None:
+            db.add(profile)
+        await notify(db, user.id, NotificationKind.system,
+                     "Your role has changed",
+                     f"An administrator changed your account role to {new_role.value}.")
     await db.flush()
     return {"id": str(user.id), "role": user.role.value}
 
@@ -229,6 +236,9 @@ async def approve_listing(
     listing.listed_at = datetime.now(timezone.utc)
     if listing.strategy:
         listing.strategy.is_published = True
+        await notify(db, listing.strategy.owner_id, NotificationKind.marketplace,
+                     "Strategy approved",
+                     f"Your strategy “{listing.strategy.name}” has been verified and is now live on the marketplace.")
     await db.flush()
     return {"status": "verified"}
 
@@ -252,6 +262,9 @@ async def reject_listing(
     listing.status = ListingStatus.removed
     if listing.strategy:
         listing.strategy.is_published = False
+        await notify(db, listing.strategy.owner_id, NotificationKind.marketplace,
+                     "Strategy needs improvement",
+                     f"Your strategy “{listing.strategy.name}” was not approved. Review the thresholds and resubmit.")
     await db.flush()
     return {"status": "removed"}
 

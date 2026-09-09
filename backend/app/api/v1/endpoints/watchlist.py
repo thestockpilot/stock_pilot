@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete
+from sqlalchemy import select
 from app.db.session import get_db
 from app.db.models.watchlist import Watchlist
 from app.db.models.user import User

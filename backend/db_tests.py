@@ -110,10 +110,11 @@ async def main():
         await sp.rollback()
         rec("TC-DB-09", f"JSONB(weights): stored & queried nested value momentum={w}", w == "30")
 
-        # TC-DB-10  role subtype 1:1
+        # TC-DB-10  role subtype 1:1 (admins are a separate identity table, not
+        # a user subtype, so users == investors + analysts).
         row = (await conn.execute(text(
             "SELECT (SELECT count(*) FROM users), "
-            "(SELECT count(*) FROM investors)+(SELECT count(*) FROM analysts)+(SELECT count(*) FROM admins)"))).first()
+            "(SELECT count(*) FROM investors)+(SELECT count(*) FROM analysts)"))).first()
         rec("TC-DB-10", f"Role subtype tables: {row[0]} users = {row[1]} profile rows (1:1 mapping)", row[0] == row[1])
 
         # TC-DB-11  singleton

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../api/client';
-import { getCached, setCache, clearCache } from '../api/cache';
+import { getCached, setCache, clearCache, subscribe } from '../api/cache';
 
 const KEY = 'portfolio';
 
@@ -8,6 +8,8 @@ export function usePortfolio() {
   const [holdings, setHoldings] = useState(() => getCached(KEY) || []);
   const [loading, setLoading] = useState(!getCached(KEY));
   const [error, setError] = useState(null);
+
+  useEffect(() => subscribe(KEY, setHoldings), []);
 
   const fetchHoldings = useCallback(async () => {
     setError(null);

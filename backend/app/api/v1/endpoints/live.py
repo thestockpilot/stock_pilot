@@ -15,7 +15,7 @@ import yfinance as yf
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_principal
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/live", tags=["live"])
@@ -129,7 +129,7 @@ def _session_status(sess: dict, now_utc) -> SessionStatus:
 
 
 @router.get("/market-status", response_model=MarketStatusResponse)
-async def get_market_status(_=Depends(get_current_user)):
+async def get_market_status(_=Depends(get_current_principal)):
     now_utc = datetime.now(timezone.utc)
     sessions = [_session_status(s, now_utc) for s in GLOBAL_SESSIONS]
 
@@ -156,7 +156,7 @@ async def get_market_status(_=Depends(get_current_user)):
 
 
 @router.get("/{ticker}/quote", response_model=QuoteResponse)
-async def get_live_quote(ticker: str, _=Depends(get_current_user)):
+async def get_live_quote(ticker: str, _=Depends(get_current_principal)):
     ticker = ticker.upper()
     try:
         stock = yf.Ticker(ticker)
@@ -214,7 +214,7 @@ async def get_live_quote(ticker: str, _=Depends(get_current_user)):
 async def get_intraday(
     ticker: str,
     interval: str = Query(default="5m", regex="^(1m|2m|5m|15m|30m|1h)$"),
-    _=Depends(get_current_user),
+    _=Depends(get_current_principal),
 ):
     ticker = ticker.upper()
     try:
@@ -247,7 +247,6 @@ async def get_intraday(
 
 def _aggregate_4h(data):
     """Aggregate 1h candles into 4h candles."""
-    import pandas as pd
     if data is None or data.empty:
         return data
     df = data.copy()
@@ -265,7 +264,7 @@ async def get_chart_data(
     ticker: str,
     period: str = Query(default="6mo", regex="^(1d|5d|1mo|3mo|6mo|1y|2y|5y|max)$"),
     interval: str = Query(default="1d", regex="^(1m|2m|5m|15m|30m|1h|4h|1d|1wk|1mo)$"),
-    _=Depends(get_current_user),
+    _=Depends(get_current_principal),
 ):
     ticker = ticker.upper()
     try:

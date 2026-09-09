@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useMarketplace } from '../../hooks/useMarketplace';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/client';
+import { getCached, setCache, subscribe } from '../../api/cache';
+
+const THRESHOLDS_KEY = 'thresholds';
 import LoadingSpinner from '../ui/LoadingSpinner';
 import EmptyState from '../ui/EmptyState';
 
@@ -59,12 +62,14 @@ export default function Marketplace() {
   const [sortBy, setSortBy] = useState('rating');
   const [filterStatus, setFilterStatus] = useState('all');
   const [showPublish, setShowPublish] = useState(false);
-  const [thresholds, setThresholds] = useState(DEFAULT_THRESHOLDS);
+  const [thresholds, setThresholds] = useState(() => getCached(THRESHOLDS_KEY, 300000) || DEFAULT_THRESHOLDS);
 
   useEffect(() => {
+    const unsub = subscribe(THRESHOLDS_KEY, setThresholds);
     api.get('/api/v1/marketplace/thresholds')
-      .then((r) => setThresholds(r.data))
+      .then((r) => setCache(THRESHOLDS_KEY, r.data))
       .catch(() => {});
+    return unsub;
   }, []);
 
   const filtered = useMemo(() => {

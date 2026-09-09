@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useWatchlist } from '../../hooks/useWatchlist';
 import { usePredictions } from '../../hooks/usePredictions';
 import { useMarketplace } from '../../hooks/useMarketplace';
 import api from '../../api/client';
@@ -20,7 +19,7 @@ import { ICONS, fmtMoney, StatCard, DashboardHeader } from './widgets/shared';
  */
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const { watchlist } = useWatchlist();
+  const watchlist = [];
   const { predictions } = usePredictions();
   const { listings } = useMarketplace();
 

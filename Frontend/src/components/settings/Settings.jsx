@@ -48,6 +48,26 @@ export default function Settings() {
     if (tab && TABS.some((t) => t.key === tab)) setActiveTab(tab);
   }, [searchParams]);
 
+  useEffect(() => {
+    api.get('/api/v1/notifications/preferences')
+      .then((r) => setNotifPrefs((p) => ({ ...p, ...r.data })))
+      .catch(() => {});
+  }, []);
+
+  const handleSaveNotifPrefs = async () => {
+    setSaving(true);
+    setMessage('');
+    try {
+      const { data } = await api.put('/api/v1/notifications/preferences', notifPrefs);
+      setNotifPrefs((p) => ({ ...p, ...data }));
+      setMessage('Notification preferences saved.');
+    } catch (err) {
+      setMessage(err.response?.data?.detail || 'Failed to save preferences.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleSaveProfile = async () => {
     setSaving(true);
     setMessage('');
@@ -217,6 +237,9 @@ export default function Settings() {
                   <Toggle on={notifPrefs[item.key]} onToggle={(v) => setNotifPrefs({ ...notifPrefs, [item.key]: v })} />
                 </div>
               ))}
+              <div className="s-actions">
+                <button className="btn primary" onClick={handleSaveNotifPrefs} disabled={saving}>{saving ? 'Saving...' : 'Save preferences'}</button>
+              </div>
             </div>
           )}
 
