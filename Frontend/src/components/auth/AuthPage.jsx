@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const isValidEmail = (email) => EMAIL_RE.test((email || '').trim());
+
 export default function AuthPage() {
   const navigate = useNavigate();
   const { login, register } = useAuth();
@@ -15,6 +18,10 @@ export default function AuthPage() {
   const handleSignIn = async (e) => {
     e.preventDefault();
     setError('');
+    if (!isValidEmail(signInForm.email)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
     setLoading(true);
     try {
       await login(signInForm.email, signInForm.password);
@@ -29,6 +36,14 @@ export default function AuthPage() {
   const handleSignUp = async (e) => {
     e.preventDefault();
     setError('');
+    if (!signUpForm.full_name.trim()) {
+      setError('Please enter your full name.');
+      return;
+    }
+    if (!isValidEmail(signUpForm.email)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
     if (signUpForm.password !== signUpForm.confirm) {
       setError('Passwords do not match.');
       return;

@@ -5,15 +5,14 @@ from sqlalchemy.orm import selectinload
 from app.db.session import get_db
 from app.db.models.marketplace import MarketplaceListing
 from app.db.models.strategy import Strategy
-from app.db.models.user import User
 from app.db.models.settings import get_settings, thresholds_dict
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_principal
 
 router = APIRouter(prefix="/marketplace", tags=["marketplace"])
 
 
 @router.get("/thresholds")
-async def marketplace_thresholds(db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def marketplace_thresholds(db: AsyncSession = Depends(get_db), _=Depends(get_current_principal)):
     """Current backtest approval thresholds, readable by any signed-in user so the
     marketplace and publish dialog stay in sync with what admins have configured."""
     settings = await get_settings(db)
@@ -21,7 +20,7 @@ async def marketplace_thresholds(db: AsyncSession = Depends(get_db), _=Depends(g
 
 
 @router.get("")
-async def list_marketplace(db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def list_marketplace(db: AsyncSession = Depends(get_db), _=Depends(get_current_principal)):
     result = await db.execute(
         select(MarketplaceListing)
         .options(selectinload(MarketplaceListing.strategy).selectinload(Strategy.owner))

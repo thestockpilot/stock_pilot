@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../api/client';
-import { getCached, setCache } from '../api/cache';
+import { getCached, setCache, subscribe } from '../api/cache';
 
 const KEY = 'predictions';
 
@@ -8,6 +8,8 @@ export function usePredictions() {
   const [predictions, setPredictions] = useState(() => getCached(KEY, 60000) || []);
   const [loading, setLoading] = useState(!getCached(KEY, 60000));
   const [error, setError] = useState(null);
+
+  useEffect(() => subscribe(KEY, setPredictions), []);
 
   const fetchPredictions = useCallback(async () => {
     setError(null);

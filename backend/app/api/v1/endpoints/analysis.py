@@ -19,7 +19,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_principal
 from app.services.market_data.fetcher import DataFetcher
 from app.services.indicators.featureEngine import FeatureEngine
 from app.services.sentiment.finbert import analyze_ticker as finbert_analyze
@@ -260,7 +260,7 @@ async def get_factor_analysis(
     w_volatility: float = Query(default=18),
     w_volume: float = Query(default=10),
     w_growth: float = Query(default=16),
-    _=Depends(get_current_user),
+    _=Depends(get_current_principal),
 ):
     ticker = ticker.upper()
     raw_scores = _compute_factor_scores(ticker)
@@ -483,7 +483,7 @@ async def get_backtest(
     w_growth: float = Query(default=16),
     risk: str = Query(default="Moderate", regex="^(Conservative|Moderate|Aggressive)$"),
     horizon: str = Query(default="Medium", regex="^(Short|Medium|Long)$"),
-    _=Depends(get_current_user),
+    _=Depends(get_current_principal),
 ):
     ticker = ticker.upper()
     weights = {
@@ -520,7 +520,7 @@ async def get_backtest(
 
 
 @router.get("/{ticker}/bull-bear", response_model=BullBearResponse)
-async def get_bull_bear(ticker: str, _=Depends(get_current_user)):
+async def get_bull_bear(ticker: str, _=Depends(get_current_principal)):
     ticker = ticker.upper()
     scores = _compute_factor_scores(ticker)
     bull, bear = _generate_bull_bear(ticker, scores)
@@ -528,7 +528,7 @@ async def get_bull_bear(ticker: str, _=Depends(get_current_user)):
 
 
 @router.get("/{ticker}/fundamentals", response_model=FundamentalsResponse)
-async def get_fundamentals(ticker: str, _=Depends(get_current_user)):
+async def get_fundamentals(ticker: str, _=Depends(get_current_principal)):
     ticker = ticker.upper()
     try:
         stock = yf.Ticker(ticker)

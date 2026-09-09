@@ -12,15 +12,14 @@ def verify_password(plain: str, hashed: str) -> bool:
     return bcrypt.checkpw(plain.encode(), hashed.encode())
 
 
-def create_access_token(sub: str) -> str:
+def create_access_token(sub: str, actor: str = "user") -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    # Tag the token type so a refresh token can never be used as an access token.
-    return jwt.encode({"sub": sub, "exp": expire, "type": "access"}, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    return jwt.encode({"sub": sub, "exp": expire, "type": "access", "actor": actor}, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
-def create_refresh_token(sub: str) -> str:
+def create_refresh_token(sub: str, actor: str = "user") -> str:
     expire = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
-    return jwt.encode({"sub": sub, "exp": expire, "type": "refresh"}, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    return jwt.encode({"sub": sub, "exp": expire, "type": "refresh", "actor": actor}, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
 def decode_token(token: str) -> dict | None:

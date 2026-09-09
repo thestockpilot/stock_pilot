@@ -7,12 +7,11 @@ from __future__ import annotations
 import asyncio
 import logging
 from concurrent.futures import ThreadPoolExecutor
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_principal
 from app.services.sentiment.finbert import (
     analyze_ticker,
     SentimentResult as _SentimentResult,
@@ -49,7 +48,7 @@ def _run_analysis(ticker: str) -> _SentimentResult:
 
 
 @router.get("/{ticker}", response_model=SentimentResponse)
-async def get_sentiment(ticker: str, _=Depends(get_current_user)):
+async def get_sentiment(ticker: str, _=Depends(get_current_principal)):
     """
     Analyze recent news sentiment for a stock ticker using FinBERT.
 

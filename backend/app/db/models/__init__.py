@@ -7,8 +7,10 @@ from app.db.models.trade        import Trade, TradeSide
 from app.db.models.strategy     import Strategy
 from app.db.models.marketplace  import MarketplaceListing, MarketplaceRating, ListingStatus
 from app.db.models.notification import Notification, NotificationKind
+from app.db.models.notification_pref import NotificationPreference
 from app.db.models.settings     import PlatformSettings
-from app.db.models.role_profiles import InvestorProfile, AnalystProfile, AdminProfile
+from app.db.models.role_profiles import InvestorProfile, AnalystProfile
+from app.db.models.admin        import Admin
 
 __all__ = [
     "User", "UserRole",
@@ -20,6 +22,8 @@ __all__ = [
     "Strategy",
     "MarketplaceListing", "MarketplaceRating", "ListingStatus",
     "Notification", "NotificationKind",
+    "NotificationPreference",
     "PlatformSettings",
-    "InvestorProfile", "AnalystProfile", "AdminProfile",
+    "InvestorProfile", "AnalystProfile",
+    "Admin",
 ]

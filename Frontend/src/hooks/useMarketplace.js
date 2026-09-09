@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../api/client';
-import { getCached, setCache, clearCache } from '../api/cache';
+import { getCached, setCache, clearCache, subscribe } from '../api/cache';
 
 const KEY = 'marketplace';
 
@@ -8,6 +8,8 @@ export function useMarketplace() {
   const [listings, setListings] = useState(() => getCached(KEY, 60000) || []);
   const [loading, setLoading] = useState(!getCached(KEY, 60000));
   const [error, setError] = useState(null);
+
+  useEffect(() => subscribe(KEY, setListings), []);
 
   const fetchListings = useCallback(async () => {
     setError(null);

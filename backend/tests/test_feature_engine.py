@@ -36,7 +36,8 @@ def test_validation_clean_data():
     print("="*60)
     
     fetcher = DataFetcher()
-    data = fetcher.fetch_historical("AAPL", period="1mo")
+    # 6mo guarantees the >=35 rows the FeatureEngine requires for its indicators.
+    data = fetcher.fetch_historical("AAPL", period="6mo")
     
     print(f"📊 Original columns: {list(data.columns)}")
     print(f"📊 Data shape: {data.shape}")
@@ -56,13 +57,14 @@ def test_validation_ticker_columns():
     print("TEST 2: Data Validation - Ticker-Specific Columns")
     print("="*60)
     
-    # Create data with _AAPL suffix
+    # Create data with _AAPL suffix (>=35 rows, as required by the FeatureEngine).
+    n = 40
     data = pd.DataFrame({
-        'Open_AAPL': [100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114],
-        'High_AAPL': [105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119],
-        'Low_AAPL': [99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113],
-        'Close_AAPL': [104, 103, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117],
-        'Volume_AAPL': [1000, 2000, 1500, 3000, 2500, 4000, 3500, 5000, 4500, 6000, 5500, 7000, 6500, 8000, 7500]
+        'Open_AAPL':   [100 + i for i in range(n)],
+        'High_AAPL':   [105 + i for i in range(n)],
+        'Low_AAPL':    [99 + i for i in range(n)],
+        'Close_AAPL':  [104 + i for i in range(n)],
+        'Volume_AAPL': [1000 + 500 * (i % 8) for i in range(n)],
     })
     
     print("Before validation:", list(data.columns))
