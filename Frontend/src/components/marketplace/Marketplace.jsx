@@ -53,7 +53,7 @@ const THRESHOLD_META = [
 export default function Marketplace() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { listings, loading, refetch } = useMarketplace();
+  const { listings, loading, refetch, purchaseListing } = useMarketplace();
 
   // Visibility only — the API independently enforces the same rule.
   const canPublish = user?.role === 'analyst' || user?.role === 'admin';
@@ -62,6 +62,8 @@ export default function Marketplace() {
   const [sortBy, setSortBy] = useState('rating');
   const [filterStatus, setFilterStatus] = useState('all');
   const [showPublish, setShowPublish] = useState(false);
+  const [payFor, setPayFor] = useState(null);   // listing being purchased
+  const [flash, setFlash] = useState('');        // success banner
   const [thresholds, setThresholds] = useState(() => getCached(THRESHOLDS_KEY, 300000) || DEFAULT_THRESHOLDS);
 
   useEffect(() => {
@@ -92,7 +94,9 @@ export default function Marketplace() {
     return items;
   }, [listings, search, sortBy, filterStatus]);
 
-  const purchased = listings.filter(l => l.status === 'verified' || l.status === 'listed').slice(0, 2);
+  // Strategies the signed-in user owns: ones they purchased, plus (for analysts)
+  // ones they authored and published.
+  const purchased = listings.filter(l => l.owned || l.is_owner);
 
   if (loading) return <LoadingSpinner />;
 
@@ -101,6 +105,12 @@ export default function Marketplace() {
       <div className="eyebrow">Marketplace</div>
       <h1 className="page">Strategy Marketplace</h1>
       <p className="lede">Verified factor weight configurations published by analysts. Every strategy must pass an objective backtest against the thresholds below before it can be listed.</p>
+
+      {flash && (
+        <div style={{ marginBottom: 16, padding: '10px 14px', borderRadius: 8, background: 'rgba(34,197,94,.1)', border: '1px solid rgba(34,197,94,.25)', color: 'var(--bull)', fontSize: 13 }}>
+          {flash}
+        </div>
+      )}
 
       <div className="thresh-grid">
         {THRESHOLD_META.map((t, i) => (
@@ -195,10 +205,16 @@ export default function Marketplace() {
 
                 <div className="mkt-bottom">
                   <span className="mkt-price">{price}</span>
-                  {isVerified ? (
-                    <button className="btn primary" onClick={() => navigate('/advisor')}>Apply in Advisor</button>
-                  ) : (
+                  {!isVerified ? (
                     <button className="btn" disabled style={{ opacity: .5 }}>Awaiting verification</button>
+                  ) : listing.is_owner ? (
+                    <button className="btn" disabled style={{ opacity: .6 }}>Your strategy</button>
+                  ) : listing.owned ? (
+                    <button className="btn primary" onClick={() => navigate('/advisor')}>Apply in Advisor</button>
+                  ) : listing.price_cents ? (
+                    <button className="btn gold" onClick={() => setPayFor(listing)}>Buy {price}</button>
+                  ) : (
+                    <button className="btn gold" onClick={() => setPayFor(listing)}>Get free</button>
                   )}
                 </div>
               </div>
@@ -231,6 +247,103 @@ export default function Marketplace() {
       {showPublish && (
         <PublishDialog thresholds={thresholds} onClose={() => setShowPublish(false)} onPublished={() => { setShowPublish(false); refetch(); }} />
       )}
+
+      {/* Mock payment / checkout */}
+      {payFor && (
+        <PaymentDialog
+          listing={payFor}
+          onClose={() => setPayFor(null)}
+          onPaid={(name) => {
+            setPayFor(null);
+            setFlash(`Purchase complete — “${name}” is now in your strategies.`);
+            setTimeout(() => setFlash(''), 6000);
+          }}
+          purchaseListing={purchaseListing}
+        />
+      )}
+    </div>
+  );
+}
+
+
+function PaymentDialog({ listing, onClose, onPaid, purchaseListing }) {
+  const priceCents = listing.price_cents || 0;
+  const priceLabel = priceCents ? `$${(priceCents / 100).toFixed(2)}` : 'Free';
+  const [card, setCard] = useState('4242 4242 4242 4242');
+  const [expiry, setExpiry] = useState('12/29');
+  const [cvc, setCvc] = useState('123');
+  const [name, setName] = useState('');
+  const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState(null);
+
+  const pay = async () => {
+    setProcessing(true);
+    setError(null);
+    try {
+      // Simulate a payment gateway round-trip, then record the (mock) purchase.
+      await new Promise((r) => setTimeout(r, 1200));
+      const last4 = card.replace(/\D/g, '').slice(-4);
+      const method = last4 ? `Demo card ****${last4}` : 'Demo card';
+      await purchaseListing(listing.id, method);
+      onPaid(listing.strategy?.name || 'Strategy');
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Payment could not be completed.');
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget && !processing) onClose(); }}>
+      <div className="modal-content" style={{ maxWidth: 440 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+          <h2 style={{ margin: 0, fontSize: 20 }}>Checkout</h2>
+          <button className="btn" onClick={onClose} disabled={processing} style={{ padding: '4px 12px', fontSize: 18, lineHeight: 1 }}>&times;</button>
+        </div>
+
+        <div style={{ padding: '7px 11px', borderRadius: 6, background: 'rgba(212,168,83,.1)', border: '1px solid rgba(212,168,83,.25)', color: 'var(--accent)', fontSize: 12, marginBottom: 16 }}>
+          Demo payment — this is a simulation for the project. No real card is charged; any details work.
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', borderRadius: 8, background: 'var(--surface2)', border: '1px solid var(--border)', marginBottom: 18 }}>
+          <div>
+            <div style={{ fontWeight: 600 }}>{listing.strategy?.name || 'Strategy'}</div>
+            <div className="mono" style={{ fontSize: 12, color: 'var(--muted)' }}>by {listing.strategy?.owner?.full_name || 'StockPilot'}</div>
+          </div>
+          <div className="mono" style={{ fontSize: 20, fontWeight: 700 }}>{priceLabel}</div>
+        </div>
+
+        <div className="publish-field">
+          <label>Name on card</label>
+          <input className="publish-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Jane Investor" />
+        </div>
+        <div className="publish-field">
+          <label>Card number</label>
+          <input className="publish-input mono" value={card} onChange={(e) => setCard(e.target.value)} placeholder="4242 4242 4242 4242" />
+        </div>
+        <div className="publish-bt-grid" style={{ marginTop: 4 }}>
+          <div className="publish-field">
+            <label>Expiry</label>
+            <input className="publish-input mono" value={expiry} onChange={(e) => setExpiry(e.target.value)} placeholder="MM/YY" />
+          </div>
+          <div className="publish-field">
+            <label>CVC</label>
+            <input className="publish-input mono" value={cvc} onChange={(e) => setCvc(e.target.value)} placeholder="123" />
+          </div>
+        </div>
+
+        {error && (
+          <div style={{ marginTop: 12, padding: '8px 12px', borderRadius: 6, background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.2)', color: 'var(--bear)', fontSize: 13 }}>
+            {error}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+          <button className="btn" onClick={onClose} disabled={processing}>Cancel</button>
+          <button className="btn gold" onClick={pay} disabled={processing}>
+            {processing ? 'Processing…' : `Pay ${priceLabel}`}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

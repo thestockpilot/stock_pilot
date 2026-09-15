@@ -31,8 +31,12 @@ export function useMarketplace() {
     fetchListings();
   }, [fetchListings]);
 
-  const purchaseListing = async (listingId) => {
-    const { data } = await api.post(`/api/v1/marketplace/${listingId}/purchase`);
+  const purchaseListing = async (listingId, paymentMethod) => {
+    const { data } = await api.post(`/api/v1/marketplace/${listingId}/purchase`, {
+      payment_method: paymentMethod,
+    });
+    clearCache(KEY);
+    await fetchListings();
     return data;
   };
 
