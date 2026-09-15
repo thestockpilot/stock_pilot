@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePredictions } from '../../hooks/usePredictions';
 import { useMarketplace } from '../../hooks/useMarketplace';
@@ -27,20 +27,42 @@ export default function AdminDashboard() {
   const [pending, setPending] = useState([]);
   const [marketIndices, setMarketIndices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    Promise.all([
-      api.get('/api/v1/admin/stats'),
-      api.get('/api/v1/admin/pending'),
-      api.get('/api/v1/dashboard/batch'),
-    ]).then(([statsRes, pendingRes, batchRes]) => {
+  const loadData = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const [statsRes, pendingRes, batchRes] = await Promise.all([
+        api.get('/api/v1/admin/stats'),
+        api.get('/api/v1/admin/pending'),
+        api.get('/api/v1/dashboard/batch'),
+      ]);
       setStats(statsRes.data);
       setPending(pendingRes.data || []);
       setMarketIndices(batchRes.data.market_indices || []);
-    }).catch((err) => {
+    } catch (err) {
       console.error('Admin dashboard fetch failed:', err);
-    }).finally(() => setLoading(false));
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, []);
+
+  // Keep the dashboard current without a manual page reload: refetch on mount,
+  // whenever the tab/window regains focus, and on a light interval.
+  useEffect(() => {
+    loadData();
+    const onFocus = () => loadData();
+    const onVisible = () => { if (!document.hidden) loadData(); };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisible);
+    const id = setInterval(loadData, 30000);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisible);
+      clearInterval(id);
+    };
+  }, [loadData]);
 
   if (loading) return <LoadingSpinner />;
 
@@ -48,11 +70,16 @@ export default function AdminDashboard() {
 
   return (
     <div className="view-enter">
-      <DashboardHeader
-        eyebrow="Administration"
-        title="Platform Overview"
-        lede="Platform health at a glance, with anything currently awaiting your review."
-      />
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+        <DashboardHeader
+          eyebrow="Administration"
+          title="Platform Overview"
+          lede="Platform health at a glance, with anything currently awaiting your review."
+        />
+        <button className="btn" onClick={loadData} disabled={refreshing} style={{ flexShrink: 0, marginTop: 4 }}>
+          {refreshing ? 'Refreshing…' : '↻ Refresh'}
+        </button>
+      </div>
 
       <MarketIndices indices={marketIndices} />
 

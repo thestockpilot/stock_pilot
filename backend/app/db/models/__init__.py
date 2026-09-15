@@ -6,6 +6,7 @@ from app.db.models.watchlist    import Watchlist
 from app.db.models.trade        import Trade, TradeSide
 from app.db.models.strategy     import Strategy
 from app.db.models.marketplace  import MarketplaceListing, MarketplaceRating, ListingStatus
+from app.db.models.purchase     import Purchase
 from app.db.models.notification import Notification, NotificationKind
 from app.db.models.notification_pref import NotificationPreference
 from app.db.models.settings     import PlatformSettings
@@ -21,6 +22,7 @@ __all__ = [
     "Trade", "TradeSide",
     "Strategy",
     "MarketplaceListing", "MarketplaceRating", "ListingStatus",
+    "Purchase",
     "Notification", "NotificationKind",
     "NotificationPreference",
     "PlatformSettings",
